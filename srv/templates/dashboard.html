@@ -125,6 +125,57 @@
     </div>
 </div>
 
+<!-- Plan interactif -->
+<div class="row g-4 mt-2">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-map"></i> Plan du chantier</h5>
+                <div class="d-flex gap-2 align-items-center">
+                    <label class="form-label mb-0 me-2 small">Niveau:</label>
+                    <div class="btn-group btn-group-sm" role="group" id="level-selector">
+                        <button type="button" class="btn btn-outline-primary active" data-level="0">RDC</button>
+                        <button type="button" class="btn btn-outline-primary" data-level="1">Niveau 1</button>
+                        <button type="button" class="btn btn-outline-primary" data-level="2">Niveau 2</button>
+                        <button type="button" class="btn btn-outline-primary" data-level="3">Niveau 3</button>
+                    </div>
+                    <div class="vr mx-2"></div>
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="show-cameras" checked>
+                        <label class="form-check-label small" for="show-cameras">Caméras</label>
+                    </div>
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="show-alerts" checked>
+                        <label class="form-check-label small" for="show-alerts">Alertes</label>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="plan-container" id="plan-container">
+                    <svg id="plan-svg" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet">
+                        <!-- Plan de base - sera mis à jour par JS -->
+                    </svg>
+                    <!-- Légende -->
+                    <div class="plan-legend">
+                        <div class="legend-item">
+                            <span class="legend-dot camera"></span> Caméra active
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-dot camera-maintenance"></span> Caméra maintenance
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-dot alert-critical"></span> Alerte critique
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-dot alert-warning"></span> Alerte moyenne
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row g-4 mt-2">
     <!-- Graphique -->
     <div class="col-lg-6">
@@ -188,10 +239,103 @@
 
 {{define "scripts"}}
 <script>
+// Données du plan par niveau
+const planData = {
+    0: { // RDC
+        name: "Rez-de-chaussée",
+        zones: [
+            { id: 4, name: "Zone D - Circulation engins", x: 50, y: 50, width: 900, height: 120, risk: "eleve", color: "#f59e0b" },
+            { id: 3, name: "Zone C - Stockage", x: 50, y: 190, width: 300, height: 200, risk: "moyen", color: "#3b82f6" },
+            { id: 1, name: "Zone A - Gros oeuvre", x: 370, y: 190, width: 350, height: 360, risk: "eleve", color: "#f59e0b" },
+            { id: 5, name: "Zone E - Base vie", x: 740, y: 190, width: 210, height: 200, risk: "faible", color: "#10b981" },
+            { id: 2, name: "Zone B - Echafaudages (base)", x: 50, y: 410, width: 300, height: 140, risk: "critique", color: "#ef4444" }
+        ],
+        cameras: [
+            { id: 6, name: "CAM-D1", x: 150, y: 110, zone: 4, statut: "active" },
+            { id: 7, name: "CAM-D2", x: 500, y: 110, zone: 4, statut: "maintenance" },
+            { id: 5, name: "CAM-C1", x: 200, y: 290, zone: 3, statut: "active" },
+            { id: 1, name: "CAM-A1", x: 400, y: 290, zone: 1, statut: "active" },
+            { id: 2, name: "CAM-A2", x: 600, y: 450, zone: 1, statut: "active" },
+            { id: 8, name: "CAM-E1", x: 845, y: 290, zone: 5, statut: "active" },
+            { id: 3, name: "CAM-B1", x: 200, y: 480, zone: 2, statut: "active" }
+        ]
+    },
+    1: { // Niveau 1
+        name: "Niveau 1",
+        zones: [
+            { id: 1, name: "Zone A - Gros oeuvre N1", x: 370, y: 190, width: 350, height: 360, risk: "eleve", color: "#f59e0b" },
+            { id: 2, name: "Zone B - Echafaudages N1", x: 50, y: 300, width: 300, height: 250, risk: "critique", color: "#ef4444" }
+        ],
+        cameras: [
+            { id: 1, name: "CAM-A1", x: 450, y: 350, zone: 1, statut: "active" },
+            { id: 3, name: "CAM-B1", x: 200, y: 420, zone: 2, statut: "active" }
+        ]
+    },
+    2: { // Niveau 2
+        name: "Niveau 2",
+        zones: [
+            { id: 1, name: "Zone A - Gros oeuvre N2", x: 370, y: 190, width: 350, height: 360, risk: "eleve", color: "#f59e0b" },
+            { id: 2, name: "Zone B - Echafaudages N2", x: 50, y: 300, width: 300, height: 250, risk: "critique", color: "#ef4444" }
+        ],
+        cameras: [
+            { id: 2, name: "CAM-A2", x: 550, y: 400, zone: 1, statut: "active" }
+        ]
+    },
+    3: { // Niveau 3
+        name: "Niveau 3",
+        zones: [
+            { id: 1, name: "Zone A - Gros oeuvre N3", x: 370, y: 190, width: 350, height: 360, risk: "eleve", color: "#f59e0b" },
+            { id: 2, name: "Zone B - Echafaudages N3", x: 50, y: 300, width: 300, height: 250, risk: "critique", color: "#ef4444" }
+        ],
+        cameras: [
+            { id: 4, name: "CAM-B2", x: 200, y: 420, zone: 2, statut: "active" }
+        ]
+    }
+};
+
+// Positions des alertes (simulées - liées aux caméras)
+const alertPositions = {
+    1: { cameraId: 1, offsetX: 30, offsetY: -20 },
+    2: { cameraId: 4, offsetX: -25, offsetY: 30 },
+    3: { cameraId: 6, offsetX: 40, offsetY: 0 },
+    4: { cameraId: 3, offsetX: 20, offsetY: -30 },
+    5: { cameraId: 2, offsetX: -30, offsetY: 20 }
+};
+
+let currentLevel = 0;
+let allAlertes = [];
+let showCameras = true;
+let showAlerts = true;
+
 document.addEventListener('DOMContentLoaded', function() {
     loadDashboard();
-    setInterval(loadDashboard, 30000); // Refresh every 30s
+    initPlanControls();
+    setInterval(loadDashboard, 30000);
 });
+
+function initPlanControls() {
+    // Level selector
+    document.querySelectorAll('#level-selector button').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('#level-selector button').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            currentLevel = parseInt(this.dataset.level);
+            renderPlan();
+        });
+    });
+    
+    // Toggle cameras
+    document.getElementById('show-cameras').addEventListener('change', function() {
+        showCameras = this.checked;
+        renderPlan();
+    });
+    
+    // Toggle alerts
+    document.getElementById('show-alerts').addEventListener('change', function() {
+        showAlerts = this.checked;
+        renderPlan();
+    });
+}
 
 async function loadDashboard() {
     // Load stats
@@ -209,9 +353,10 @@ async function loadDashboard() {
 
     // Load alertes
     try {
-        const alertesResp = await fetch('/api/alertes?limit=5');
-        const alertes = await alertesResp.json();
-        renderAlertesTable(alertes);
+        const alertesResp = await fetch('/api/alertes?limit=10');
+        allAlertes = await alertesResp.json();
+        renderAlertesTable(allAlertes.slice(0, 5));
+        renderPlan();
     } catch (e) {
         console.error('Failed to load alertes:', e);
     }
@@ -224,6 +369,125 @@ async function loadDashboard() {
     } catch (e) {
         console.error('Failed to load zones:', e);
     }
+}
+
+function renderPlan() {
+    const svg = document.getElementById('plan-svg');
+    const level = planData[currentLevel];
+    
+    let html = `
+        <!-- Fond -->
+        <rect x="0" y="0" width="1000" height="600" fill="#f8fafc"/>
+        
+        <!-- Grille -->
+        <defs>
+            <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+                <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#e2e8f0" stroke-width="0.5"/>
+            </pattern>
+        </defs>
+        <rect x="0" y="0" width="1000" height="600" fill="url(#grid)"/>
+        
+        <!-- Titre du niveau -->
+        <text x="500" y="30" text-anchor="middle" font-size="18" font-weight="bold" fill="#1e293b">
+            ${level.name} - Chantier Tour Horizon
+        </text>
+    `;
+    
+    // Zones
+    level.zones.forEach(zone => {
+        const opacity = zone.risk === 'critique' ? 0.3 : zone.risk === 'eleve' ? 0.2 : 0.15;
+        html += `
+            <g class="zone-group" data-zone-id="${zone.id}">
+                <rect x="${zone.x}" y="${zone.y}" width="${zone.width}" height="${zone.height}" 
+                      fill="${zone.color}" fill-opacity="${opacity}" 
+                      stroke="${zone.color}" stroke-width="2" rx="8"/>
+                <text x="${zone.x + 10}" y="${zone.y + 25}" font-size="14" font-weight="600" fill="${zone.color}">
+                    ${zone.name}
+                </text>
+            </g>
+        `;
+    });
+    
+    // Cameras
+    if (showCameras) {
+        level.cameras.forEach(cam => {
+            const color = cam.statut === 'active' ? '#10b981' : '#f59e0b';
+            const hasAlert = allAlertes.some(a => a.camera_id === cam.id && a.statut === 'active');
+            html += `
+                <g class="camera-marker" data-camera-id="${cam.id}" style="cursor: pointer;" 
+                   onclick="showCameraInfo(${cam.id}, '${cam.name}', '${cam.statut}')">
+                    <!-- Champ de vision -->
+                    <path d="M ${cam.x} ${cam.y} L ${cam.x - 60} ${cam.y + 80} L ${cam.x + 60} ${cam.y + 80} Z" 
+                          fill="${color}" fill-opacity="0.1" stroke="${color}" stroke-opacity="0.3" stroke-width="1"/>
+                    <!-- Icône caméra -->
+                    <circle cx="${cam.x}" cy="${cam.y}" r="18" fill="white" stroke="${color}" stroke-width="3"/>
+                    <text x="${cam.x}" y="${cam.y + 5}" text-anchor="middle" font-size="16" fill="${color}">●</text>
+                    <!-- Label -->
+                    <rect x="${cam.x - 30}" y="${cam.y - 38}" width="60" height="18" rx="4" fill="${color}"/>
+                    <text x="${cam.x}" y="${cam.y - 24}" text-anchor="middle" font-size="11" fill="white" font-weight="bold">
+                        ${cam.name}
+                    </text>
+                    ${hasAlert ? `<circle cx="${cam.x + 14}" cy="${cam.y - 14}" r="8" fill="#ef4444" class="pulse-alert"/>` : ''}
+                </g>
+            `;
+        });
+    }
+    
+    // Alertes
+    if (showAlerts) {
+        const activeAlertes = allAlertes.filter(a => a.statut === 'active');
+        activeAlertes.forEach(alerte => {
+            const pos = alertPositions[alerte.id];
+            if (!pos) return;
+            
+            const cam = level.cameras.find(c => c.id === pos.cameraId);
+            if (!cam) return;
+            
+            const x = cam.x + pos.offsetX;
+            const y = cam.y + pos.offsetY + 60;
+            const color = alerte.severite >= 8 ? '#ef4444' : alerte.severite >= 5 ? '#f59e0b' : '#3b82f6';
+            
+            html += `
+                <g class="alert-marker pulse-alert" data-alert-id="${alerte.id}" style="cursor: pointer;"
+                   onclick="showAlertOnPlan(${alerte.id})">
+                    <circle cx="${x}" cy="${y}" r="14" fill="${color}" fill-opacity="0.3"/>
+                    <circle cx="${x}" cy="${y}" r="10" fill="${color}"/>
+                    <text x="${x}" y="${y + 4}" text-anchor="middle" font-size="12" fill="white" font-weight="bold">!</text>
+                </g>
+            `;
+        });
+    }
+    
+    // Compass
+    html += `
+        <g transform="translate(930, 80)">
+            <circle cx="0" cy="0" r="25" fill="white" stroke="#cbd5e1" stroke-width="1"/>
+            <polygon points="0,-20 -6,5 0,-5 6,5" fill="#ef4444"/>
+            <polygon points="0,20 -6,-5 0,5 6,-5" fill="#1e293b"/>
+            <text x="0" y="-28" text-anchor="middle" font-size="10" fill="#64748b">N</text>
+        </g>
+    `;
+    
+    // Scale
+    html += `
+        <g transform="translate(50, 570)">
+            <line x1="0" y1="0" x2="100" y2="0" stroke="#64748b" stroke-width="2"/>
+            <line x1="0" y1="-5" x2="0" y2="5" stroke="#64748b" stroke-width="2"/>
+            <line x1="100" y1="-5" x2="100" y2="5" stroke="#64748b" stroke-width="2"/>
+            <text x="50" y="15" text-anchor="middle" font-size="11" fill="#64748b">20m</text>
+        </g>
+    `;
+    
+    svg.innerHTML = html;
+}
+
+function showCameraInfo(id, name, statut) {
+    const alertCount = allAlertes.filter(a => a.camera_id === id && a.statut === 'active').length;
+    alert(`Caméra: ${name}\nStatut: ${statut === 'active' ? 'En ligne' : 'Maintenance'}\nAlertes actives: ${alertCount}`);
+}
+
+function showAlertOnPlan(id) {
+    window.location.href = '/alertes?id=' + id;
 }
 
 function renderAlertesTable(alertes) {
@@ -240,20 +504,28 @@ function renderAlertesTable(alertes) {
                            a.statut === 'acknowledged' ? '<span class="badge bg-warning">Prise en compte</span>' :
                            '<span class="badge bg-success">Résolue</span>';
         return `
-            <tr>
+            <tr class="${a.statut === 'active' ? 'alert-row-highlight' : ''}" style="cursor:pointer" onclick="highlightOnPlan(${a.camera_id})">
                 <td><small>${time}</small></td>
                 <td><span class="badge" style="background:${a.type_risque_couleur || '#6c757d'}">${a.type_risque_nom || 'Inconnu'}</span></td>
                 <td>${a.zone_nom || '-'}</td>
                 <td><span class="badge ${severityClass}">${a.severite}/10</span></td>
                 <td>${statusBadge}</td>
                 <td>
-                    <button class="btn btn-sm btn-outline-primary" onclick="showAlertDetail(${a.id})">
+                    <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); showAlertDetail(${a.id})">
                         <i class="bi bi-eye"></i>
                     </button>
                 </td>
             </tr>
         `;
     }).join('');
+}
+
+function highlightOnPlan(cameraId) {
+    const marker = document.querySelector(`[data-camera-id="${cameraId}"]`);
+    if (marker) {
+        marker.classList.add('highlight-marker');
+        setTimeout(() => marker.classList.remove('highlight-marker'), 2000);
+    }
 }
 
 function renderZonesList(zones) {
@@ -272,7 +544,8 @@ function renderZonesList(zones) {
         };
         const color = riskColors[z.niveau_risque] || 'secondary';
         return `
-            <div class="zone-item d-flex justify-content-between align-items-center mb-2 p-2 rounded border-start border-4 border-${color} bg-light">
+            <div class="zone-item d-flex justify-content-between align-items-center mb-2 p-2 rounded border-start border-4 border-${color} bg-light" 
+                 style="cursor:pointer" onclick="focusZone(${z.id})">
                 <div>
                     <strong>${z.nom}</strong>
                     <br><small class="text-muted">${z.cameras_actives} caméra(s)</small>
@@ -283,6 +556,14 @@ function renderZonesList(zones) {
             </div>
         `;
     }).join('');
+}
+
+function focusZone(zoneId) {
+    const zoneEl = document.querySelector(`[data-zone-id="${zoneId}"]`);
+    if (zoneEl) {
+        zoneEl.classList.add('highlight-zone');
+        setTimeout(() => zoneEl.classList.remove('highlight-zone'), 2000);
+    }
 }
 
 function showAlertDetail(id) {
