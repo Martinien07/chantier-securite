@@ -1,0 +1,264 @@
+{{define "content"}}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-exclamation-triangle"></i> Alertes</h2>
+    <div class="d-flex gap-2">
+        <select class="form-select form-select-sm" id="filter-status" style="width: auto;">
+            <option value="">Tous les statuts</option>
+            <option value="active" selected>Actives</option>
+            <option value="acknowledged">Prises en compte</option>
+            <option value="resolved">Résolues</option>
+        </select>
+        <select class="form-select form-select-sm" id="filter-zone" style="width: auto;">
+            <option value="">Toutes les zones</option>
+        </select>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date/Heure</th>
+                                <th>Type de risque</th>
+                                <th>Zone</th>
+                                <th>Caméra</th>
+                                <th>Sévérité</th>
+                                <th>Confiance IA</th>
+                                <th>Statut</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="alertes-table">
+                            <tr>
+                                <td colspan="8" class="text-center py-4">
+                                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                                    Chargement...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card" id="alert-detail-card" style="display: none;">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Détail de l'alerte</h5>
+                <button class="btn btn-sm btn-outline-secondary" onclick="closeDetail()">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <div class="card-body" id="alert-detail-content">
+            </div>
+        </div>
+        
+        <div class="card" id="no-selection-card">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-hand-index" style="font-size: 3rem; color: #ccc;"></i>
+                <p class="text-muted mt-3">Sélectionnez une alerte pour voir les détails et l'explication IA</p>
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script>
+let allAlertes = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadAlertes();
+    loadZonesFilter();
+    
+    document.getElementById('filter-status').addEventListener('change', filterAlertes);
+    document.getElementById('filter-zone').addEventListener('change', filterAlertes);
+});
+
+async function loadAlertes() {
+    try {
+        const resp = await fetch('/api/alertes?limit=100');
+        allAlertes = await resp.json();
+        filterAlertes();
+    } catch (e) {
+        console.error('Failed to load alertes:', e);
+    }
+}
+
+async function loadZonesFilter() {
+    try {
+        const resp = await fetch('/api/zones');
+        const zones = await resp.json();
+        const select = document.getElementById('filter-zone');
+        zones.forEach(z => {
+            const option = document.createElement('option');
+            option.value = z.id;
+            option.textContent = z.nom;
+            select.appendChild(option);
+        });
+    } catch (e) {
+        console.error('Failed to load zones:', e);
+    }
+}
+
+function filterAlertes() {
+    const statusFilter = document.getElementById('filter-status').value;
+    const zoneFilter = document.getElementById('filter-zone').value;
+    
+    let filtered = allAlertes;
+    if (statusFilter) {
+        filtered = filtered.filter(a => a.statut === statusFilter);
+    }
+    if (zoneFilter) {
+        filtered = filtered.filter(a => a.zone_id == zoneFilter);
+    }
+    
+    renderAlertes(filtered);
+}
+
+function renderAlertes(alertes) {
+    const tbody = document.getElementById('alertes-table');
+    
+    if (!alertes || alertes.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted"><i class="bi bi-check-circle"></i> Aucune alerte correspondante</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = alertes.map(a => {
+        const datetime = new Date(a.created_at).toLocaleString('fr-FR', {
+            day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+        });
+        const severityClass = a.severite >= 8 ? 'bg-danger' : a.severite >= 5 ? 'bg-warning text-dark' : 'bg-info';
+        const statusBadge = {
+            'active': '<span class="badge bg-danger">Active</span>',
+            'acknowledged': '<span class="badge bg-warning text-dark">Prise en compte</span>',
+            'resolved': '<span class="badge bg-success">Résolue</span>',
+            'false_positive': '<span class="badge bg-secondary">Faux positif</span>'
+        }[a.statut] || '<span class="badge bg-secondary">-</span>';
+        
+        const confidence = Math.round((a.confiance || 0) * 100);
+        const confClass = confidence >= 90 ? 'text-success' : confidence >= 70 ? 'text-warning' : 'text-danger';
+        
+        return `
+            <tr class="${a.statut === 'active' ? 'table-danger' : ''}" onclick="showDetail(${a.id})" style="cursor: pointer;">
+                <td><small>${datetime}</small></td>
+                <td><span class="badge" style="background:${a.type_risque_couleur || '#6c757d'}">${a.type_risque_nom || '-'}</span></td>
+                <td>${a.zone_nom || '-'}</td>
+                <td><small>${a.camera_nom || '-'}</small></td>
+                <td><span class="badge ${severityClass}">${a.severite}/10</span></td>
+                <td><span class="${confClass}">${confidence}%</span></td>
+                <td>${statusBadge}</td>
+                <td>
+                    ${a.statut === 'active' ? `
+                        <button class="btn btn-sm btn-outline-success" onclick="event.stopPropagation(); acknowledgeAlert(${a.id})" title="Prendre en compte">
+                            <i class="bi bi-check"></i>
+                        </button>
+                    ` : ''}
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function showDetail(id) {
+    const alerte = allAlertes.find(a => a.id === id);
+    if (!alerte) return;
+    
+    document.getElementById('no-selection-card').style.display = 'none';
+    document.getElementById('alert-detail-card').style.display = 'block';
+    
+    let detailsIA = {};
+    try {
+        detailsIA = JSON.parse(alerte.details_ia || '{}');
+    } catch (e) {}
+    
+    const datetime = new Date(alerte.created_at).toLocaleString('fr-FR');
+    
+    document.getElementById('alert-detail-content').innerHTML = `
+        <div class="mb-3">
+            <span class="badge" style="background:${alerte.type_risque_couleur || '#6c757d'}; font-size: 1rem;">
+                ${alerte.type_risque_nom || 'Inconnu'}
+            </span>
+            <span class="badge bg-${alerte.severite >= 8 ? 'danger' : alerte.severite >= 5 ? 'warning' : 'info'} ms-2">
+                Sévérité: ${alerte.severite}/10
+            </span>
+        </div>
+        
+        <p class="mb-2"><strong>${alerte.description}</strong></p>
+        
+        <div class="small text-muted mb-3">
+            <i class="bi bi-clock"></i> ${datetime}<br>
+            <i class="bi bi-camera-video"></i> ${alerte.camera_nom || '-'}<br>
+            <i class="bi bi-geo-alt"></i> ${alerte.zone_nom || '-'}
+        </div>
+        
+        <hr>
+        
+        <h6><i class="bi bi-cpu"></i> Explication IA</h6>
+        <div class="bg-light p-3 rounded mb-3">
+            ${detailsIA.contexte ? `<p class="mb-2"><strong>Contexte:</strong> ${detailsIA.contexte}</p>` : ''}
+            ${detailsIA.analyse ? `<p class="mb-2"><strong>Analyse:</strong> ${detailsIA.analyse}</p>` : ''}
+            ${detailsIA.objets_detectes ? `
+                <p class="mb-2"><strong>Objets détectés:</strong></p>
+                <ul class="mb-2">
+                    ${detailsIA.objets_detectes.map(o => `<li>${o}</li>`).join('')}
+                </ul>
+            ` : ''}
+            ${detailsIA.facteurs_risque ? `
+                <p class="mb-2"><strong>Facteurs de risque:</strong></p>
+                <ul class="mb-2">
+                    ${detailsIA.facteurs_risque.map(f => `<li class="text-danger">${f}</li>`).join('')}
+                </ul>
+            ` : ''}
+            ${detailsIA.recommandation ? `
+                <div class="alert alert-warning mb-0">
+                    <i class="bi bi-lightbulb"></i> <strong>Recommandation:</strong><br>
+                    ${detailsIA.recommandation}
+                </div>
+            ` : ''}
+            ${Object.keys(detailsIA).length === 0 ? '<p class="text-muted mb-0">Aucune explication disponible</p>' : ''}
+        </div>
+        
+        <div class="d-flex justify-content-between">
+            <span class="text-muted">Confiance: <strong>${Math.round(alerte.confiance * 100)}%</strong></span>
+        </div>
+        
+        ${alerte.statut === 'active' ? `
+            <hr>
+            <div class="d-grid gap-2">
+                <button class="btn btn-success" onclick="acknowledgeAlert(${alerte.id})">
+                    <i class="bi bi-check-circle"></i> Prendre en compte
+                </button>
+                <button class="btn btn-outline-secondary" onclick="markFalsePositive(${alerte.id})">
+                    <i class="bi bi-x-circle"></i> Faux positif
+                </button>
+            </div>
+        ` : ''}
+    `;
+}
+
+function closeDetail() {
+    document.getElementById('no-selection-card').style.display = 'block';
+    document.getElementById('alert-detail-card').style.display = 'none';
+}
+
+async function acknowledgeAlert(id) {
+    try {
+        await fetch(`/api/alertes/${id}/acknowledge`, { method: 'POST' });
+        loadAlertes();
+        closeDetail();
+    } catch (e) {
+        console.error('Failed to acknowledge:', e);
+    }
+}
+
+function markFalsePositive(id) {
+    alert('Marquer comme faux positif: fonctionnalité à implémenter');
+}
+</script>
+{{end}}

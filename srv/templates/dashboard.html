@@ -1,0 +1,292 @@
+{{define "content"}}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-speedometer2"></i> Tableau de bord</h2>
+    <div class="btn-group">
+        <button class="btn btn-outline-secondary btn-sm active">Aujourd'hui</button>
+        <button class="btn btn-outline-secondary btn-sm">7 jours</button>
+        <button class="btn btn-outline-secondary btn-sm">30 jours</button>
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card border-danger">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Alertes actives</h6>
+                        <h2 class="mb-0" id="stat-alertes-actives">-</h2>
+                    </div>
+                    <div class="stat-icon bg-danger">
+                        <i class="bi bi-exclamation-triangle"></i>
+                    </div>
+                </div>
+                <small class="text-danger"><i class="bi bi-arrow-up"></i> Priorité haute</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card border-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Alertes (24h)</h6>
+                        <h2 class="mb-0" id="stat-alertes-jour">-</h2>
+                    </div>
+                    <div class="stat-icon bg-warning">
+                        <i class="bi bi-clock-history"></i>
+                    </div>
+                </div>
+                <small class="text-muted">Dernières 24 heures</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card border-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Caméras actives</h6>
+                        <h2 class="mb-0" id="stat-cameras-actives">-</h2>
+                    </div>
+                    <div class="stat-icon bg-success">
+                        <i class="bi bi-camera-video"></i>
+                    </div>
+                </div>
+                <small class="text-success"><i class="bi bi-check-circle"></i> Opérationnelles</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card border-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Zones à risque</h6>
+                        <h2 class="mb-0" id="stat-zones-risque">-</h2>
+                    </div>
+                    <div class="stat-icon bg-primary">
+                        <i class="bi bi-geo-alt"></i>
+                    </div>
+                </div>
+                <small class="text-muted">Niveau élevé/critique</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Alertes récentes -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-bell"></i> Alertes récentes</h5>
+                <a href="/alertes" class="btn btn-sm btn-outline-primary">Voir tout</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Heure</th>
+                                <th>Type</th>
+                                <th>Zone</th>
+                                <th>Sévérité</th>
+                                <th>Statut</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="alertes-table">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    <i class="bi bi-hourglass-split"></i> Chargement...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Zones -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-map"></i> État des zones</h5>
+            </div>
+            <div class="card-body" id="zones-list">
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-hourglass-split"></i> Chargement...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mt-2">
+    <!-- Graphique -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-graph-up"></i> Tendance des alertes</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="alertes-chart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Caméras live -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-grid-3x2"></i> Aperçu caméras</h5>
+                <a href="/cameras" class="btn btn-sm btn-outline-primary">Grille complète</a>
+            </div>
+            <div class="card-body">
+                <div class="row g-2" id="cameras-preview">
+                    <div class="col-6">
+                        <div class="camera-preview">
+                            <div class="camera-placeholder">
+                                <i class="bi bi-camera-video-off"></i>
+                                <span>CAM-A1</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="camera-preview">
+                            <div class="camera-placeholder">
+                                <i class="bi bi-camera-video-off"></i>
+                                <span>CAM-B1</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="camera-preview">
+                            <div class="camera-placeholder">
+                                <i class="bi bi-camera-video-off"></i>
+                                <span>CAM-D1</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="camera-preview">
+                            <div class="camera-placeholder">
+                                <i class="bi bi-camera-video-off"></i>
+                                <span>CAM-B2</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboard();
+    setInterval(loadDashboard, 30000); // Refresh every 30s
+});
+
+async function loadDashboard() {
+    // Load stats
+    try {
+        const statsResp = await fetch('/api/stats');
+        const stats = await statsResp.json();
+        document.getElementById('stat-alertes-actives').textContent = stats.alertes_actives;
+        document.getElementById('stat-alertes-jour').textContent = stats.alertes_jour;
+        document.getElementById('stat-cameras-actives').textContent = stats.cameras_actives;
+        document.getElementById('stat-zones-risque').textContent = stats.zones_risque;
+        document.getElementById('alertes-badge').textContent = stats.alertes_actives;
+    } catch (e) {
+        console.error('Failed to load stats:', e);
+    }
+
+    // Load alertes
+    try {
+        const alertesResp = await fetch('/api/alertes?limit=5');
+        const alertes = await alertesResp.json();
+        renderAlertesTable(alertes);
+    } catch (e) {
+        console.error('Failed to load alertes:', e);
+    }
+
+    // Load zones
+    try {
+        const zonesResp = await fetch('/api/zones');
+        const zones = await zonesResp.json();
+        renderZonesList(zones);
+    } catch (e) {
+        console.error('Failed to load zones:', e);
+    }
+}
+
+function renderAlertesTable(alertes) {
+    const tbody = document.getElementById('alertes-table');
+    if (!alertes || alertes.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-check-circle"></i> Aucune alerte</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = alertes.map(a => {
+        const time = new Date(a.created_at).toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
+        const severityClass = a.severite >= 8 ? 'bg-danger' : a.severite >= 5 ? 'bg-warning' : 'bg-info';
+        const statusBadge = a.statut === 'active' ? '<span class="badge bg-danger">Active</span>' :
+                           a.statut === 'acknowledged' ? '<span class="badge bg-warning">Prise en compte</span>' :
+                           '<span class="badge bg-success">Résolue</span>';
+        return `
+            <tr>
+                <td><small>${time}</small></td>
+                <td><span class="badge" style="background:${a.type_risque_couleur || '#6c757d'}">${a.type_risque_nom || 'Inconnu'}</span></td>
+                <td>${a.zone_nom || '-'}</td>
+                <td><span class="badge ${severityClass}">${a.severite}/10</span></td>
+                <td>${statusBadge}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" onclick="showAlertDetail(${a.id})">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderZonesList(zones) {
+    const container = document.getElementById('zones-list');
+    if (!zones || zones.length === 0) {
+        container.innerHTML = '<p class="text-muted">Aucune zone configurée</p>';
+        return;
+    }
+    
+    container.innerHTML = zones.map(z => {
+        const riskColors = {
+            'critique': 'danger',
+            'eleve': 'warning', 
+            'moyen': 'info',
+            'faible': 'success'
+        };
+        const color = riskColors[z.niveau_risque] || 'secondary';
+        return `
+            <div class="zone-item d-flex justify-content-between align-items-center mb-2 p-2 rounded border-start border-4 border-${color} bg-light">
+                <div>
+                    <strong>${z.nom}</strong>
+                    <br><small class="text-muted">${z.cameras_actives} caméra(s)</small>
+                </div>
+                <div class="text-end">
+                    ${z.alertes_actives > 0 ? `<span class="badge bg-danger">${z.alertes_actives} alerte(s)</span>` : '<span class="badge bg-success">OK</span>'}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function showAlertDetail(id) {
+    window.location.href = '/alertes?id=' + id;
+}
+</script>
+{{end}}

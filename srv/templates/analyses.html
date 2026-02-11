@@ -1,0 +1,203 @@
+{{define "content"}}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-cpu"></i> Analyses IA - Explicabilité</h2>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-diagram-3"></i> Modèles de détection actifs</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="border rounded p-3">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="mb-0"><i class="bi bi-person-bounding-box"></i> Détection de personnes</h6>
+                                <span class="badge bg-success">Actif</span>
+                            </div>
+                            <p class="small text-muted mb-2">YOLOv8 fine-tuné sur données chantier</p>
+                            <div class="progress mb-2" style="height: 6px;">
+                                <div class="progress-bar bg-success" style="width: 94%"></div>
+                            </div>
+                            <small>Précision: 94% | Rappel: 91%</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="border rounded p-3">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="mb-0"><i class="bi bi-shield-check"></i> Détection EPI</h6>
+                                <span class="badge bg-success">Actif</span>
+                            </div>
+                            <p class="small text-muted mb-2">Classification casque/gilet/harnais</p>
+                            <div class="progress mb-2" style="height: 6px;">
+                                <div class="progress-bar bg-success" style="width: 89%"></div>
+                            </div>
+                            <small>Précision: 89% | Rappel: 86%</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="border rounded p-3">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="mb-0"><i class="bi bi-truck"></i> Détection engins</h6>
+                                <span class="badge bg-success">Actif</span>
+                            </div>
+                            <p class="small text-muted mb-2">Chargeuse, grue, nacelle, etc.</p>
+                            <div class="progress mb-2" style="height: 6px;">
+                                <div class="progress-bar bg-success" style="width: 92%"></div>
+                            </div>
+                            <small>Précision: 92% | Rappel: 88%</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="border rounded p-3">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="mb-0"><i class="bi bi-rulers"></i> Estimation distances</h6>
+                                <span class="badge bg-success">Actif</span>
+                            </div>
+                            <p class="small text-muted mb-2">Calibration caméra + homographie</p>
+                            <div class="progress mb-2" style="height: 6px;">
+                                <div class="progress-bar bg-warning" style="width: 78%"></div>
+                            </div>
+                            <small>Erreur moyenne: ±30cm</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-lightbulb"></i> Pipeline d'explicabilité (XAI)</h5>
+            </div>
+            <div class="card-body">
+                <div class="xai-pipeline">
+                    <div class="xai-step">
+                        <div class="xai-step-icon bg-primary">
+                            <i class="bi bi-camera-video"></i>
+                        </div>
+                        <div class="xai-step-content">
+                            <h6>1. Acquisition</h6>
+                            <p class="small text-muted mb-0">Flux vidéo en temps réel</p>
+                        </div>
+                    </div>
+                    <div class="xai-arrow"><i class="bi bi-arrow-right"></i></div>
+                    <div class="xai-step">
+                        <div class="xai-step-icon bg-info">
+                            <i class="bi bi-eye"></i>
+                        </div>
+                        <div class="xai-step-content">
+                            <h6>2. Détection</h6>
+                            <p class="small text-muted mb-0">Objets, personnes, EPI</p>
+                        </div>
+                    </div>
+                    <div class="xai-arrow"><i class="bi bi-arrow-right"></i></div>
+                    <div class="xai-step">
+                        <div class="xai-step-icon bg-warning">
+                            <i class="bi bi-diagram-2"></i>
+                        </div>
+                        <div class="xai-step-content">
+                            <h6>3. Analyse contextuelle</h6>
+                            <p class="small text-muted mb-0">Relations spatiales, règles métier</p>
+                        </div>
+                    </div>
+                    <div class="xai-arrow"><i class="bi bi-arrow-right"></i></div>
+                    <div class="xai-step">
+                        <div class="xai-step-icon bg-danger">
+                            <i class="bi bi-exclamation-triangle"></i>
+                        </div>
+                        <div class="xai-step-content">
+                            <h6>4. Évaluation risque</h6>
+                            <p class="small text-muted mb-0">Score de sévérité</p>
+                        </div>
+                    </div>
+                    <div class="xai-arrow"><i class="bi bi-arrow-right"></i></div>
+                    <div class="xai-step">
+                        <div class="xai-step-icon bg-success">
+                            <i class="bi bi-chat-text"></i>
+                        </div>
+                        <div class="xai-step-content">
+                            <h6>5. Génération explication</h6>
+                            <p class="small text-muted mb-0">Texte compréhensible</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-gear"></i> Configuration XAI</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Niveau de détail des explications</label>
+                    <select class="form-select">
+                        <option>Simple (grand public)</option>
+                        <option selected>Détaillé (HSE)</option>
+                        <option>Expert (technique)</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Seuil de confiance minimum</label>
+                    <input type="range" class="form-range" min="50" max="99" value="75" id="confidence-threshold">
+                    <small class="text-muted">Actuel: <span id="confidence-value">75%</span></small>
+                </div>
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="show-heatmaps" checked>
+                        <label class="form-check-label" for="show-heatmaps">Afficher les heatmaps d'attention</label>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="show-bboxes" checked>
+                        <label class="form-check-label" for="show-bboxes">Afficher les boîtes englobantes</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Performance aujourd'hui</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="d-flex justify-content-between py-2 border-bottom">
+                        <span>Images analysées</span>
+                        <strong>12,847</strong>
+                    </li>
+                    <li class="d-flex justify-content-between py-2 border-bottom">
+                        <span>Détections</span>
+                        <strong>3,291</strong>
+                    </li>
+                    <li class="d-flex justify-content-between py-2 border-bottom">
+                        <span>Alertes générées</span>
+                        <strong>8</strong>
+                    </li>
+                    <li class="d-flex justify-content-between py-2 border-bottom">
+                        <span>Faux positifs signalés</span>
+                        <strong class="text-success">1</strong>
+                    </li>
+                    <li class="d-flex justify-content-between py-2">
+                        <span>Latence moyenne</span>
+                        <strong>127ms</strong>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script>
+document.getElementById('confidence-threshold').addEventListener('input', function() {
+    document.getElementById('confidence-value').textContent = this.value + '%';
+});
+</script>
+{{end}}
