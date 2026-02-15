@@ -56,22 +56,25 @@ func (s *Server) HandleAdminCameras(w http.ResponseWriter, r *http.Request) {
 	var views []CameraView
 	for _, c := range cameras {
 		views = append(views, CameraView{
-			ID:        c.ID,
-			Name:      ptrStr(c.Name),
-			StreamURL: ptrStr(c.StreamUrl),
-			PlanID:    ptrInt(c.PlanID),
-			Level:     ptrStr(c.PlanLevel),
-			XPlan:     ptrFloat(c.XPlan),
-			YPlan:     ptrFloat(c.YPlan),
-			IsWebcam:  ptrInt(c.IsWebcam) == 1,
+			ID:          c.ID,
+			Name:        ptrStr(c.Name),
+			StreamURL:   ptrStr(c.StreamUrl),
+			PlanID:      ptrInt(c.PlanID),
+			Level:       ptrStr(c.PlanLevel),
+			XPlan:       ptrFloat(c.XPlan),
+			YPlan:       ptrFloat(c.YPlan),
+			Orientation: ptrFloat(c.Orientation),
+			FOV:         ptrFloat(c.Fov),
+			IsWebcam:    ptrInt(c.IsWebcam) == 1,
 		})
 	}
 
 	var planViews []PlanView
 	for _, p := range plans {
 		planViews = append(planViews, PlanView{
-			ID:    p.ID,
-			Level: ptrStr(p.Level),
+			ID:        p.ID,
+			Level:     ptrStr(p.Level),
+			ImagePath: ptrStr(p.ImagePath),
 		})
 	}
 	s.render(w, "admin_cameras", map[string]any{"Site": s.siteViewFromDB(site), "Cameras": views, "Plans": planViews})
