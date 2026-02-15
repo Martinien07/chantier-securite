@@ -9,316 +9,287 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <link href="/static/style.css" rel="stylesheet">
     <style>
-        .camera-form-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.5rem;
-        }
-        .form-section {
-            background: #f8fafc;
-            border-radius: 12px;
-            padding: 1.25rem;
-        }
-        .form-section-title {
-            font-weight: 600;
-            color: #1e293b;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .plan-selector-container {
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-        }
-        .plan-preview {
-            flex: 1;
-            background: white;
-            border: 2px dashed #e2e8f0;
-            border-radius: 8px;
+        .camera-badge { font-size: 0.75rem; }
+        .badge-rtsp { background: #2563eb; }
+        .badge-webcam { background: #7c3aed; }
+        .position-cell { font-family: monospace; font-size: 0.85rem; }
+        
+        /* Plan preview container */
+        .plan-preview-container {
             position: relative;
-            min-height: 300px;
+            width: 100%;
+            height: 400px;
+            background: #f8fafc;
+            border-radius: 8px;
             overflow: hidden;
             cursor: crosshair;
         }
-        .plan-preview.has-image {
-            border-style: solid;
-            border-color: #2563eb;
-        }
-        .plan-preview svg {
+        .plan-preview-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
+            transform-origin: 0 0;
         }
-        .plan-preview-placeholder {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            color: #94a3b8;
+        .plan-preview-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
         }
-        .camera-marker-preview {
-            position: absolute;
-            width: 30px;
-            height: 30px;
-            background: #2563eb;
-            border: 3px solid white;
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        .plan-empty {
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-size: 14px;
-            z-index: 10;
+            height: 100%;
+            color: #94a3b8;
+            flex-direction: column;
+            gap: 1rem;
         }
-        .camera-marker-preview.webcam {
-            background: #7c3aed;
+        
+        /* Camera marker */
+        .camera-marker-preview {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 3px solid #fff;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
-        .position-info {
-            margin-top: 0.75rem;
-            padding: 0.75rem;
-            background: #dbeafe;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            color: #1e40af;
+        .camera-marker-preview.rtsp { background: #2563eb; }
+        .camera-marker-preview.webcam { background: #7c3aed; }
+        .camera-marker-preview.pending {
+            animation: pulse 1s ease-in-out infinite;
         }
-        .position-info.empty {
-            background: #fef3c7;
-            color: #92400e;
+        @keyframes pulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            50% { transform: translate(-50%, -50%) scale(1.3); opacity: 0.7; }
         }
-        .camera-table img {
-            width: 60px;
-            height: 40px;
-            object-fit: cover;
-            border-radius: 4px;
-            background: #1e293b;
-        }
-        .webcam-badge {
-            background: #7c3aed;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-        }
-        .rtsp-badge {
-            background: #2563eb;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-        }
-        .position-badge {
-            background: #e2e8f0;
-            color: #475569;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-family: monospace;
-        }
-        .confirm-dialog {
+        
+        /* Confirm dialog */
+        .position-confirm {
             position: absolute;
             background: white;
+            padding: 1rem;
             border-radius: 8px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-            padding: 1rem;
-            z-index: 100;
+            z-index: 200;
             min-width: 200px;
         }
-        .confirm-dialog::before {
-            content: '';
+        .position-confirm h6 { margin: 0 0 0.5rem 0; }
+        .position-confirm .position-text {
+            font-family: monospace;
+            background: #f1f5f9;
+            padding: 0.5rem;
+            border-radius: 4px;
+            margin-bottom: 0.75rem;
+        }
+        
+        /* Nav controls */
+        .plan-nav-controls {
             position: absolute;
-            top: -8px;
-            left: 50%;
-            transform: translateX(-50%);
-            border-left: 8px solid transparent;
-            border-right: 8px solid transparent;
-            border-bottom: 8px solid white;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 150;
+        }
+        .plan-nav-controls button {
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            color: #475569;
+            transition: all 0.2s;
+        }
+        .plan-nav-controls button:hover {
+            background: #2563eb;
+            color: white;
+        }
+        
+        /* Zoom indicator */
+        .zoom-indicator {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(255,255,255,0.9);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #475569;
+            z-index: 150;
+        }
+        
+        /* Position confirmed badge */
+        .position-confirmed {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: #dcfce7;
+            color: #166534;
+            border-radius: 6px;
+            font-size: 0.9rem;
         }
     </style>
 </head>
 <body>
-    <div class="d-flex">
-        {{template "sidebar" .}}
-        
-        <div class="main-content p-4">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="page-title"><i class="bi bi-camera-video"></i> Gestion des Caméras</h1>
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#cameraModal" onclick="openAddModal()">
-                    <i class="bi bi-plus-lg"></i> Nouvelle caméra
-                </button>
-            </div>
-            
-            <div class="card">
-                <div class="card-body p-0">
-                    <table class="table table-hover mb-0 camera-table">
-                        <thead class="bg-light">
-                            <tr>
-                                <th>Aperçu</th>
-                                <th>Nom</th>
-                                <th>Type</th>
-                                <th>Plan/Niveau</th>
-                                <th>Position</th>
-                                <th>FOV</th>
-                                <th class="text-end">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {{range .Cameras}}
-                            <tr>
-                                <td>
-                                    <div style="width: 60px; height: 40px; background: #1e293b; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #64748b;">
-                                        <i class="bi bi-{{if .IsWebcam}}webcam{{else}}camera-video{{end}}"></i>
-                                    </div>
-                                </td>
-                                <td><strong>{{.Name}}</strong></td>
-                                <td>
-                                    {{if .IsWebcam}}
-                                    <span class="webcam-badge"><i class="bi bi-webcam"></i> Webcam</span>
-                                    {{else}}
-                                    <span class="rtsp-badge"><i class="bi bi-broadcast"></i> RTSP</span>
-                                    {{end}}
-                                </td>
-                                <td>{{.Level}}</td>
-                                <td>
-                                    {{if and .XPlan .YPlan}}
-                                    <span class="position-badge">X:{{printf "%.0f" .XPlan}} Y:{{printf "%.0f" .YPlan}}</span>
-                                    {{else}}
-                                    <span class="text-muted">Non défini</span>
-                                    {{end}}
-                                </td>
-                                <td>{{if .FOV}}{{printf "%.0f" .FOV}}°{{else}}-{{end}}</td>
-                                <td class="text-end">
-                                    <button class="btn btn-sm btn-outline-primary" onclick="openEditModal({{.ID}}, '{{.Name}}', '{{.StreamURL}}', {{.PlanID}}, {{if .XPlan}}{{.XPlan}}{{else}}0{{end}}, {{if .YPlan}}{{.YPlan}}{{else}}0{{end}}, {{if .Orientation}}{{.Orientation}}{{else}}0{{end}}, {{if .FOV}}{{.FOV}}{{else}}90{{end}}, {{if .IsWebcam}}true{{else}}false{{end}})">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteCamera({{.ID}})">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            {{else}}
-                            <tr>
-                                <td colspan="7" class="text-center text-muted py-4">Aucune caméra configurée</td>
-                            </tr>
-                            {{end}}
-                        </tbody>
-                    </table>
-                </div>
+    {{template "sidebar" .}}
+    <main class="main-content">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="page-title"><i class="bi bi-camera-video"></i> Gestion des Caméras</h1>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#cameraModal" onclick="resetForm()">
+                <i class="bi bi-plus-lg"></i> Nouvelle Caméra
+            </button>
+        </div>
+
+        <div class="card">
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Nom</th>
+                            <th>Type</th>
+                            <th>Plan / Niveau</th>
+                            <th>Position</th>
+                            <th>FOV</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range .Cameras}}
+                        <tr>
+                            <td><strong>{{.Name}}</strong></td>
+                            <td>
+                                {{if .IsWebcam}}
+                                <span class="badge badge-webcam camera-badge"><i class="bi bi-webcam"></i> Webcam</span>
+                                {{else}}
+                                <span class="badge badge-rtsp camera-badge"><i class="bi bi-broadcast"></i> RTSP</span>
+                                {{end}}
+                            </td>
+                            <td><span class="badge bg-secondary">{{.Level}}</span></td>
+                            <td class="position-cell">X:{{printf "%.0f" .XPlan}} Y:{{printf "%.0f" .YPlan}}</td>
+                            <td>{{printf "%.0f" .FOV}}°</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" onclick="editCamera({{.ID}}, '{{.Name}}', {{.IsWebcam}}, '{{.StreamURL}}', {{.PlanID}}, {{.XPlan}}, {{.YPlan}}, {{.Orientation}}, {{.FOV}})">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteCamera({{.ID}})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
             </div>
         </div>
-    </div>
-    
+    </main>
+
     <!-- Camera Modal -->
     <div class="modal fade" id="cameraModal" tabindex="-1">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="cameraModalTitle"><i class="bi bi-camera-video"></i> Nouvelle caméra</h5>
+                    <h5 class="modal-title" id="modalTitle"><i class="bi bi-camera-video"></i> Nouvelle Caméra</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="camera-form-container">
-                        <!-- Left: Form fields -->
-                        <div class="form-section">
-                            <div class="form-section-title">
-                                <i class="bi bi-info-circle"></i> Informations de la caméra
-                            </div>
-                            
-                            <input type="hidden" id="camera-id" value="">
-                            
-                            <div class="mb-3">
-                                <label class="form-label">Nom de la caméra *</label>
-                                <input type="text" class="form-control" id="camera-name" placeholder="Ex: CAM-A1, Entrée principale...">
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label class="form-label">Type de caméra *</label>
-                                <select class="form-select" id="camera-type" onchange="toggleCameraType()">
-                                    <option value="rtsp">Caméra RTSP/IP</option>
-                                    <option value="webcam">Webcam locale</option>
-                                </select>
-                            </div>
-                            
-                            <div class="mb-3" id="stream-url-group">
-                                <label class="form-label">URL du flux RTSP *</label>
-                                <input type="text" class="form-control" id="camera-url" placeholder="rtsp://192.168.1.10/stream1">
-                                <small class="text-muted">Format: rtsp://[user:pass@]ip:port/path</small>
-                            </div>
-                            
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Orientation (°)</label>
-                                    <input type="number" class="form-control" id="camera-orientation" value="0" min="0" max="360">
-                                    <small class="text-muted">0° = Nord</small>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Champ de vision (°)</label>
-                                    <input type="number" class="form-control" id="camera-fov" value="90" min="30" max="180">
-                                    <small class="text-muted">Angle de vue</small>
-                                </div>
-                            </div>
-                            
-                            <hr>
-                            
-                            <div class="form-section-title">
-                                <i class="bi bi-geo-alt"></i> Emplacement sur le plan
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label class="form-label">Plan / Niveau *</label>
-                                <select class="form-select" id="camera-plan" onchange="loadPlanPreview()">
-                                    <option value="">-- Sélectionner un plan --</option>
-                                    {{range .Plans}}
-                                    <option value="{{.ID}}" data-image="{{.ImagePath}}">{{.Level}}</option>
-                                    {{end}}
-                                </select>
-                            </div>
-                            
-                            <div id="position-display" class="position-info empty">
-                                <i class="bi bi-info-circle"></i> Sélectionnez un plan puis cliquez sur l'image pour positionner la caméra
-                            </div>
-                            
-                            <input type="hidden" id="camera-x" value="">
-                            <input type="hidden" id="camera-y" value="">
-                        </div>
-                        
-                        <!-- Right: Plan preview -->
-                        <div class="form-section plan-selector-container">
-                            <div class="form-section-title">
-                                <i class="bi bi-map"></i> Positionnement sur le plan
-                            </div>
-                            
-                            <div class="plan-preview" id="plan-preview" onclick="handlePlanClick(event)">
-                                <svg id="plan-preview-svg" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet">
-                                    <image id="plan-preview-image" x="0" y="0" width="800" height="600" href=""/>
-                                    <g id="plan-preview-marker"></g>
-                                </svg>
-                                <div class="plan-preview-placeholder" id="plan-placeholder">
-                                    <i class="bi bi-image fs-1 mb-2 d-block"></i>
-                                    <p>Sélectionnez un plan<br>pour voir l'aperçu</p>
+                    <div class="row">
+                        <!-- Form Column -->
+                        <div class="col-md-5">
+                            <form id="cameraForm">
+                                <input type="hidden" id="camera-id">
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Nom de la caméra *</label>
+                                    <input type="text" class="form-control" id="camera-name" required placeholder="Ex: CAM-A1">
                                 </div>
                                 
-                                <!-- Confirmation dialog -->
-                                <div class="confirm-dialog" id="confirm-dialog" style="display: none;">
-                                    <p class="mb-2"><strong>Confirmer la position ?</strong></p>
-                                    <p class="text-muted small mb-3" id="confirm-position">X: 0, Y: 0</p>
-                                    <div class="d-flex gap-2">
-                                        <button class="btn btn-sm btn-primary flex-fill" onclick="confirmPosition()">
-                                            <i class="bi bi-check"></i> OK
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-secondary flex-fill" onclick="cancelPosition()">
-                                            <i class="bi bi-x"></i> Annuler
-                                        </button>
+                                <div class="mb-3">
+                                    <label class="form-label">Type *</label>
+                                    <select class="form-select" id="camera-type" onchange="toggleUrlField()">
+                                        <option value="rtsp">Caméra RTSP/IP</option>
+                                        <option value="webcam">Webcam locale</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3" id="url-group">
+                                    <label class="form-label">URL du flux RTSP *</label>
+                                    <input type="text" class="form-control" id="camera-url" placeholder="rtsp://192.168.1.10/stream1">
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Orientation (°)</label>
+                                            <input type="number" class="form-control" id="camera-orientation" value="0" min="0" max="360">
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Champ de vision (°)</label>
+                                            <input type="number" class="form-control" id="camera-fov" value="90" min="30" max="180">
+                                        </div>
                                     </div>
                                 </div>
+                                
+                                <hr>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Plan *</label>
+                                    <select class="form-select" id="camera-plan" onchange="loadPlanPreview()">
+                                        <option value="">-- Sélectionner un plan --</option>
+                                        {{range .Plans}}
+                                        <option value="{{.ID}}" data-image="{{.ImagePath}}">{{.Level}}</option>
+                                        {{end}}
+                                    </select>
+                                </div>
+                                
+                                <div id="position-display" class="d-none">
+                                    <div class="position-confirmed">
+                                        <i class="bi bi-check-circle-fill"></i>
+                                        <span>Position: <strong id="position-text">X:0 Y:0</strong></span>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <!-- Plan Preview Column -->
+                        <div class="col-md-7">
+                            <label class="form-label">Position sur le plan <small class="text-muted">(cliquez pour placer)</small></label>
+                            <div class="plan-preview-container" id="plan-container">
+                                <div class="plan-preview-wrapper" id="plan-wrapper">
+                                    <div id="plan-preview">
+                                        <div class="plan-empty">
+                                            <i class="bi bi-image" style="font-size: 3rem;"></i>
+                                            <span>Sélectionnez un plan pour voir l'aperçu</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="plan-nav-controls" id="nav-controls" style="display:none;">
+                                    <button type="button" onclick="zoomIn()" title="Zoom +"><i class="bi bi-plus"></i></button>
+                                    <button type="button" onclick="zoomOut()" title="Zoom -"><i class="bi bi-dash"></i></button>
+                                    <button type="button" onclick="resetView()" title="Réinitialiser"><i class="bi bi-arrows-fullscreen"></i></button>
+                                </div>
+                                <div class="zoom-indicator" id="zoom-indicator" style="display:none;">100%</div>
                             </div>
-                            
-                            <div class="mt-2 text-muted small">
-                                <i class="bi bi-lightbulb"></i> Cliquez sur le plan pour positionner la caméra. La position sera confirmée avant enregistrement.
-                            </div>
+                            <small class="text-muted mt-2 d-block">
+                                <i class="bi bi-info-circle"></i> 
+                                Ctrl + Molette pour zoomer | Glisser pour déplacer
+                            </small>
                         </div>
                     </div>
                 </div>
@@ -331,284 +302,428 @@
             </div>
         </div>
     </div>
-    
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-    let editingCameraId = null;
-    let pendingPosition = null;
-    let confirmedPosition = null;
-    
-    function openAddModal() {
-        editingCameraId = null;
-        document.getElementById('cameraModalTitle').innerHTML = '<i class="bi bi-camera-video"></i> Nouvelle caméra';
-        document.getElementById('camera-id').value = '';
-        document.getElementById('camera-name').value = '';
-        document.getElementById('camera-type').value = 'rtsp';
-        document.getElementById('camera-url').value = '';
-        document.getElementById('camera-plan').value = '';
-        document.getElementById('camera-orientation').value = '0';
-        document.getElementById('camera-fov').value = '90';
-        document.getElementById('camera-x').value = '';
-        document.getElementById('camera-y').value = '';
-        confirmedPosition = null;
-        toggleCameraType();
-        clearPlanPreview();
-        updatePositionDisplay();
-    }
-    
-    function openEditModal(id, name, url, planId, x, y, orientation, fov, isWebcam) {
-        editingCameraId = id;
-        document.getElementById('cameraModalTitle').innerHTML = '<i class="bi bi-pencil"></i> Modifier la caméra';
-        document.getElementById('camera-id').value = id;
-        document.getElementById('camera-name').value = name;
-        document.getElementById('camera-type').value = isWebcam ? 'webcam' : 'rtsp';
-        document.getElementById('camera-url').value = isWebcam ? '' : url;
-        document.getElementById('camera-plan').value = planId;
-        document.getElementById('camera-orientation').value = orientation;
-        document.getElementById('camera-fov').value = fov;
-        document.getElementById('camera-x').value = x || '';
-        document.getElementById('camera-y').value = y || '';
+        // Plans data
+        const plans = [
+            {{range .Plans}}
+            { id: {{.ID}}, level: "{{.Level}}", imagePath: "{{.ImagePath}}" },
+            {{end}}
+        ];
         
-        if (x && y && x > 0 && y > 0) {
-            confirmedPosition = { x: x, y: y };
-        } else {
-            confirmedPosition = null;
-        }
+        // Camera position state
+        let currentPosition = { x: 0, y: 0 };
+        let pendingPosition = null;
+        let isEditing = false;
+        let imageSize = { width: 800, height: 600 };
         
-        toggleCameraType();
-        loadPlanPreview();
-        updatePositionDisplay();
-        
-        new bootstrap.Modal(document.getElementById('cameraModal')).show();
-    }
-    
-    function toggleCameraType() {
-        const type = document.getElementById('camera-type').value;
-        const urlGroup = document.getElementById('stream-url-group');
-        if (type === 'webcam') {
-            urlGroup.style.display = 'none';
-        } else {
-            urlGroup.style.display = 'block';
-        }
-    }
-    
-    function loadPlanPreview() {
-        const select = document.getElementById('camera-plan');
-        const option = select.options[select.selectedIndex];
-        const imagePath = option?.dataset?.image;
-        const placeholder = document.getElementById('plan-placeholder');
-        const preview = document.getElementById('plan-preview');
-        const image = document.getElementById('plan-preview-image');
-        
-        if (imagePath && select.value) {
-            image.setAttribute('href', imagePath);
-            placeholder.style.display = 'none';
-            preview.classList.add('has-image');
-            
-            // Draw existing marker if position is confirmed
-            if (confirmedPosition) {
-                drawMarker(confirmedPosition.x, confirmedPosition.y, true);
-            } else {
-                clearMarker();
-            }
-        } else {
-            clearPlanPreview();
-        }
-    }
-    
-    function clearPlanPreview() {
-        const placeholder = document.getElementById('plan-placeholder');
-        const preview = document.getElementById('plan-preview');
-        const image = document.getElementById('plan-preview-image');
-        
-        image.setAttribute('href', '');
-        placeholder.style.display = 'block';
-        preview.classList.remove('has-image');
-        clearMarker();
-        hideConfirmDialog();
-    }
-    
-    function handlePlanClick(event) {
-        const select = document.getElementById('camera-plan');
-        if (!select.value) {
-            alert('Veuillez d\'abord sélectionner un plan');
-            return;
-        }
-        
-        const svg = document.getElementById('plan-preview-svg');
-        const rect = svg.getBoundingClientRect();
-        
-        // Calculate position relative to SVG viewBox
-        const viewBox = svg.viewBox.baseVal;
-        const x = ((event.clientX - rect.left) / rect.width) * viewBox.width;
-        const y = ((event.clientY - rect.top) / rect.height) * viewBox.height;
-        
-        // Store pending position
-        pendingPosition = { x: Math.round(x), y: Math.round(y) };
-        
-        // Draw temporary marker
-        drawMarker(x, y, false);
-        
-        // Show confirmation dialog
-        showConfirmDialog(event.clientX - rect.left, event.clientY - rect.top, pendingPosition.x, pendingPosition.y);
-    }
-    
-    function drawMarker(x, y, confirmed) {
-        const isWebcam = document.getElementById('camera-type').value === 'webcam';
-        const markerGroup = document.getElementById('plan-preview-marker');
-        const color = isWebcam ? '#7c3aed' : '#2563eb';
-        const opacity = confirmed ? 1 : 0.7;
-        
-        markerGroup.innerHTML = `
-            <g transform="translate(${x}, ${y})">
-                <circle r="20" fill="${color}" fill-opacity="${opacity * 0.3}" stroke="${color}" stroke-width="3" stroke-opacity="${opacity}"/>
-                <circle r="8" fill="${color}" fill-opacity="${opacity}"/>
-                ${!confirmed ? '<circle r="25" fill="none" stroke="' + color + '" stroke-width="2" stroke-dasharray="5,5" opacity="0.5"><animate attributeName="r" from="20" to="35" dur="1s" repeatCount="indefinite"/><animate attributeName="opacity" from="0.5" to="0" dur="1s" repeatCount="indefinite"/></circle>' : ''}
-            </g>
-        `;
-    }
-    
-    function clearMarker() {
-        document.getElementById('plan-preview-marker').innerHTML = '';
-    }
-    
-    function showConfirmDialog(screenX, screenY, planX, planY) {
-        const dialog = document.getElementById('confirm-dialog');
-        const preview = document.getElementById('plan-preview');
-        const rect = preview.getBoundingClientRect();
-        
-        // Position dialog near click but within bounds
-        let left = screenX - 100;
-        let top = screenY + 20;
-        
-        if (left < 10) left = 10;
-        if (left > rect.width - 210) left = rect.width - 210;
-        if (top > rect.height - 100) top = screenY - 120;
-        
-        dialog.style.left = left + 'px';
-        dialog.style.top = top + 'px';
-        dialog.style.display = 'block';
-        
-        document.getElementById('confirm-position').textContent = `Position: X=${planX}, Y=${planY}`;
-    }
-    
-    function hideConfirmDialog() {
-        document.getElementById('confirm-dialog').style.display = 'none';
-    }
-    
-    function confirmPosition() {
-        if (pendingPosition) {
-            confirmedPosition = { ...pendingPosition };
-            document.getElementById('camera-x').value = confirmedPosition.x;
-            document.getElementById('camera-y').value = confirmedPosition.y;
-            
-            // Redraw marker as confirmed
-            drawMarker(confirmedPosition.x, confirmedPosition.y, true);
-            updatePositionDisplay();
-        }
-        hideConfirmDialog();
-        pendingPosition = null;
-    }
-    
-    function cancelPosition() {
-        hideConfirmDialog();
-        pendingPosition = null;
-        
-        // Restore previous confirmed marker or clear
-        if (confirmedPosition) {
-            drawMarker(confirmedPosition.x, confirmedPosition.y, true);
-        } else {
-            clearMarker();
-        }
-    }
-    
-    function updatePositionDisplay() {
-        const display = document.getElementById('position-display');
-        const x = document.getElementById('camera-x').value;
-        const y = document.getElementById('camera-y').value;
-        
-        if (x && y && parseFloat(x) > 0 && parseFloat(y) > 0) {
-            display.className = 'position-info';
-            display.innerHTML = `<i class="bi bi-check-circle"></i> Position définie: <strong>X=${x}, Y=${y}</strong>`;
-        } else {
-            display.className = 'position-info empty';
-            display.innerHTML = '<i class="bi bi-info-circle"></i> Sélectionnez un plan puis cliquez sur l\'image pour positionner la caméra';
-        }
-    }
-    
-    function saveCamera() {
-        const name = document.getElementById('camera-name').value.trim();
-        const type = document.getElementById('camera-type').value;
-        const url = type === 'webcam' ? 'webcam:local' : document.getElementById('camera-url').value.trim();
-        const planId = document.getElementById('camera-plan').value;
-        const x = parseFloat(document.getElementById('camera-x').value) || 0;
-        const y = parseFloat(document.getElementById('camera-y').value) || 0;
-        const orientation = parseFloat(document.getElementById('camera-orientation').value) || 0;
-        const fov = parseFloat(document.getElementById('camera-fov').value) || 90;
-        
-        if (!name) {
-            alert('Veuillez saisir un nom pour la caméra');
-            return;
-        }
-        if (!planId) {
-            alert('Veuillez sélectionner un plan');
-            return;
-        }
-        if (type === 'rtsp' && !url) {
-            alert('Veuillez saisir l\'URL du flux RTSP');
-            return;
-        }
-        if (!x || !y) {
-            alert('Veuillez cliquer sur le plan pour définir la position de la caméra');
-            return;
-        }
-        
-        const data = {
-            name: name,
-            stream_url: url,
-            plan_id: parseInt(planId),
-            x_plan: x,
-            y_plan: y,
-            orientation: orientation,
-            fov: fov,
-            is_webcam: type === 'webcam' ? 1 : 0
+        // Plan viewer state
+        let planViewer = {
+            scale: 1,
+            panX: 0,
+            panY: 0,
+            isDragging: false,
+            lastX: 0,
+            lastY: 0
         };
         
-        const method = editingCameraId ? 'PUT' : 'POST';
-        const endpoint = editingCameraId ? `/api/admin/cameras/${editingCameraId}` : '/api/admin/cameras';
-        
-        fetch(endpoint, {
-            method: method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        })
-        .then(r => {
-            if (!r.ok) throw new Error('Erreur serveur');
-            return r.json();
-        })
-        .then(() => {
-            bootstrap.Modal.getInstance(document.getElementById('cameraModal')).hide();
-            location.reload();
-        })
-        .catch(err => {
-            alert('Erreur: ' + err.message);
-        });
-    }
-    
-    function deleteCamera(id) {
-        if (!confirm('Supprimer cette caméra ?')) return;
-        
-        fetch(`/api/admin/cameras/${id}`, { method: 'DELETE' })
-            .then(() => location.reload())
-            .catch(err => alert('Erreur: ' + err.message));
-    }
-    
-    // Close confirm dialog when clicking outside
-    document.getElementById('plan-preview').addEventListener('click', function(e) {
-        if (e.target.closest('.confirm-dialog')) {
-            e.stopPropagation();
+        function toggleUrlField() {
+            const isWebcam = document.getElementById('camera-type').value === 'webcam';
+            document.getElementById('url-group').style.display = isWebcam ? 'none' : 'block';
+            if (isWebcam) {
+                document.getElementById('camera-url').value = 'webcam:local';
+            } else {
+                if (document.getElementById('camera-url').value === 'webcam:local') {
+                    document.getElementById('camera-url').value = '';
+                }
+            }
+            updateMarkerStyle();
         }
-    });
+        
+        function updateMarkerStyle() {
+            const marker = document.getElementById('camera-marker');
+            if (marker) {
+                const isWebcam = document.getElementById('camera-type').value === 'webcam';
+                marker.classList.remove('rtsp', 'webcam');
+                marker.classList.add(isWebcam ? 'webcam' : 'rtsp');
+            }
+        }
+        
+        function loadPlanPreview() {
+            const planId = document.getElementById('camera-plan').value;
+            const preview = document.getElementById('plan-preview');
+            const navControls = document.getElementById('nav-controls');
+            const zoomIndicator = document.getElementById('zoom-indicator');
+            
+            if (!planId) {
+                preview.innerHTML = `
+                    <div class="plan-empty">
+                        <i class="bi bi-image" style="font-size: 3rem;"></i>
+                        <span>Sélectionnez un plan pour voir l'aperçu</span>
+                    </div>
+                `;
+                navControls.style.display = 'none';
+                zoomIndicator.style.display = 'none';
+                return;
+            }
+            
+            const plan = plans.find(p => p.id == planId);
+            if (!plan || !plan.imagePath) {
+                preview.innerHTML = `
+                    <div class="plan-empty">
+                        <i class="bi bi-exclamation-triangle" style="font-size: 3rem; color: #f59e0b;"></i>
+                        <span>Aucune image pour ce plan</span>
+                    </div>
+                `;
+                navControls.style.display = 'none';
+                zoomIndicator.style.display = 'none';
+                return;
+            }
+            
+            // Reset view
+            resetView();
+            
+            const isWebcam = document.getElementById('camera-type').value === 'webcam';
+            const markerClass = isWebcam ? 'webcam' : 'rtsp';
+            
+            preview.innerHTML = `
+                <img src="${plan.imagePath}" alt="Plan ${plan.level}" onload="onPlanImageLoad(this)">
+                <div id="camera-marker" class="camera-marker-preview ${markerClass}" style="display: none;"></div>
+                <div id="position-confirm-dialog" style="display: none;"></div>
+            `;
+            
+            navControls.style.display = 'flex';
+            zoomIndicator.style.display = 'block';
+            
+            // Setup event listeners
+            setupPlanInteraction();
+            
+            // Show existing position if editing
+            if (isEditing && currentPosition.x > 0 && currentPosition.y > 0) {
+                setTimeout(() => showMarker(currentPosition.x, currentPosition.y, false), 100);
+            }
+        }
+        
+        function onPlanImageLoad(img) {
+            imageSize.width = img.naturalWidth || 800;
+            imageSize.height = img.naturalHeight || 600;
+        }
+        
+        function setupPlanInteraction() {
+            const container = document.getElementById('plan-container');
+            const wrapper = document.getElementById('plan-wrapper');
+            
+            // Click to place marker
+            container.addEventListener('click', handlePlanClick);
+            
+            // Wheel zoom
+            container.addEventListener('wheel', handleWheel, { passive: false });
+            
+            // Pan with drag
+            container.addEventListener('mousedown', startDrag);
+            container.addEventListener('mousemove', doDrag);
+            container.addEventListener('mouseup', endDrag);
+            container.addEventListener('mouseleave', endDrag);
+        }
+        
+        function handlePlanClick(e) {
+            if (planViewer.isDragging) return;
+            
+            const container = document.getElementById('plan-container');
+            const rect = container.getBoundingClientRect();
+            const wrapper = document.getElementById('plan-wrapper');
+            
+            // Get click position relative to container
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+            
+            // Convert to image coordinates (accounting for pan and zoom)
+            const imgX = (clickX - planViewer.panX) / planViewer.scale;
+            const imgY = (clickY - planViewer.panY) / planViewer.scale;
+            
+            // Scale to actual image dimensions
+            const containerWidth = rect.width;
+            const containerHeight = rect.height;
+            const scaleX = imageSize.width / containerWidth;
+            const scaleY = imageSize.height / containerHeight;
+            
+            const x = Math.round(imgX * scaleX);
+            const y = Math.round(imgY * scaleY);
+            
+            if (x >= 0 && x <= imageSize.width && y >= 0 && y <= imageSize.height) {
+                showMarker(x, y, true);
+                showConfirmDialog(x, y, clickX, clickY);
+            }
+        }
+        
+        function handleWheel(e) {
+            if (!e.ctrlKey) return;
+            e.preventDefault();
+            
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            const newScale = Math.min(5, Math.max(0.5, planViewer.scale * delta));
+            
+            // Zoom towards mouse position
+            const container = document.getElementById('plan-container');
+            const rect = container.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            planViewer.panX = mouseX - (mouseX - planViewer.panX) * (newScale / planViewer.scale);
+            planViewer.panY = mouseY - (mouseY - planViewer.panY) * (newScale / planViewer.scale);
+            planViewer.scale = newScale;
+            
+            applyTransform();
+        }
+        
+        function startDrag(e) {
+            if (e.button !== 0) return;
+            planViewer.isDragging = true;
+            planViewer.lastX = e.clientX;
+            planViewer.lastY = e.clientY;
+            document.getElementById('plan-container').style.cursor = 'grabbing';
+        }
+        
+        function doDrag(e) {
+            if (!planViewer.isDragging) return;
+            
+            const dx = e.clientX - planViewer.lastX;
+            const dy = e.clientY - planViewer.lastY;
+            
+            planViewer.panX += dx;
+            planViewer.panY += dy;
+            planViewer.lastX = e.clientX;
+            planViewer.lastY = e.clientY;
+            
+            applyTransform();
+        }
+        
+        function endDrag() {
+            planViewer.isDragging = false;
+            document.getElementById('plan-container').style.cursor = 'crosshair';
+        }
+        
+        function applyTransform() {
+            const wrapper = document.getElementById('plan-wrapper');
+            if (wrapper) {
+                wrapper.style.transform = `translate(${planViewer.panX}px, ${planViewer.panY}px) scale(${planViewer.scale})`;
+                document.getElementById('zoom-indicator').textContent = Math.round(planViewer.scale * 100) + '%';
+            }
+        }
+        
+        function zoomIn() {
+            planViewer.scale = Math.min(5, planViewer.scale * 1.2);
+            applyTransform();
+        }
+        
+        function zoomOut() {
+            planViewer.scale = Math.max(0.5, planViewer.scale / 1.2);
+            applyTransform();
+        }
+        
+        function resetView() {
+            planViewer.scale = 1;
+            planViewer.panX = 0;
+            planViewer.panY = 0;
+            applyTransform();
+        }
+        
+        function showMarker(x, y, pending = false) {
+            const marker = document.getElementById('camera-marker');
+            if (!marker) return;
+            
+            // Convert image coords to display coords
+            const container = document.getElementById('plan-container');
+            const rect = container.getBoundingClientRect();
+            const displayX = (x / imageSize.width) * rect.width;
+            const displayY = (y / imageSize.height) * rect.height;
+            
+            marker.style.left = displayX + 'px';
+            marker.style.top = displayY + 'px';
+            marker.style.display = 'block';
+            
+            if (pending) {
+                marker.classList.add('pending');
+                pendingPosition = { x, y };
+            } else {
+                marker.classList.remove('pending');
+            }
+        }
+        
+        function showConfirmDialog(x, y, clickX, clickY) {
+            const dialog = document.getElementById('position-confirm-dialog');
+            if (!dialog) return;
+            
+            dialog.innerHTML = `
+                <div class="position-confirm" style="left: ${Math.min(clickX + 10, 350)}px; top: ${Math.min(clickY + 10, 300)}px;">
+                    <h6><i class="bi bi-geo-alt"></i> Confirmer la position ?</h6>
+                    <div class="position-text">X: ${x}, Y: ${y}</div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-primary flex-fill" onclick="confirmPosition()">
+                            <i class="bi bi-check"></i> OK
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary flex-fill" onclick="cancelPosition()">
+                            Annuler
+                        </button>
+                    </div>
+                </div>
+            `;
+            dialog.style.display = 'block';
+        }
+        
+        function confirmPosition() {
+            if (pendingPosition) {
+                currentPosition = { ...pendingPosition };
+                pendingPosition = null;
+                
+                // Update display
+                document.getElementById('position-text').textContent = `X:${currentPosition.x} Y:${currentPosition.y}`;
+                document.getElementById('position-display').classList.remove('d-none');
+                
+                // Remove pending animation
+                const marker = document.getElementById('camera-marker');
+                if (marker) marker.classList.remove('pending');
+            }
+            
+            // Hide dialog
+            const dialog = document.getElementById('position-confirm-dialog');
+            if (dialog) dialog.style.display = 'none';
+        }
+        
+        function cancelPosition() {
+            pendingPosition = null;
+            
+            // Hide dialog
+            const dialog = document.getElementById('position-confirm-dialog');
+            if (dialog) dialog.style.display = 'none';
+            
+            // Restore previous marker position or hide
+            if (currentPosition.x > 0 && currentPosition.y > 0) {
+                showMarker(currentPosition.x, currentPosition.y, false);
+            } else {
+                const marker = document.getElementById('camera-marker');
+                if (marker) marker.style.display = 'none';
+            }
+        }
+        
+        function resetForm() {
+            isEditing = false;
+            currentPosition = { x: 0, y: 0 };
+            pendingPosition = null;
+            
+            document.getElementById('modalTitle').innerHTML = '<i class="bi bi-camera-video"></i> Nouvelle Caméra';
+            document.getElementById('camera-id').value = '';
+            document.getElementById('camera-name').value = '';
+            document.getElementById('camera-type').value = 'rtsp';
+            document.getElementById('camera-url').value = '';
+            document.getElementById('camera-orientation').value = '0';
+            document.getElementById('camera-fov').value = '90';
+            document.getElementById('camera-plan').value = '';
+            document.getElementById('position-display').classList.add('d-none');
+            
+            toggleUrlField();
+            loadPlanPreview();
+        }
+        
+        function editCamera(id, name, isWebcam, streamUrl, planId, xPlan, yPlan, orientation, fov) {
+            isEditing = true;
+            currentPosition = { x: xPlan, y: yPlan };
+            pendingPosition = null;
+            
+            document.getElementById('modalTitle').innerHTML = '<i class="bi bi-pencil"></i> Modifier la caméra';
+            document.getElementById('camera-id').value = id;
+            document.getElementById('camera-name').value = name;
+            document.getElementById('camera-type').value = isWebcam ? 'webcam' : 'rtsp';
+            document.getElementById('camera-url').value = streamUrl || '';
+            document.getElementById('camera-orientation').value = orientation || 0;
+            document.getElementById('camera-fov').value = fov || 90;
+            document.getElementById('camera-plan').value = planId;
+            
+            // Show position
+            document.getElementById('position-text').textContent = `X:${xPlan} Y:${yPlan}`;
+            document.getElementById('position-display').classList.remove('d-none');
+            
+            toggleUrlField();
+            
+            // Open modal
+            const modal = new bootstrap.Modal(document.getElementById('cameraModal'));
+            modal.show();
+            
+            // Load plan preview after modal is shown
+            setTimeout(() => loadPlanPreview(), 300);
+        }
+        
+        async function saveCamera() {
+            const id = document.getElementById('camera-id').value;
+            const name = document.getElementById('camera-name').value.trim();
+            const isWebcam = document.getElementById('camera-type').value === 'webcam';
+            const streamUrl = isWebcam ? 'webcam:local' : document.getElementById('camera-url').value.trim();
+            const planId = parseInt(document.getElementById('camera-plan').value);
+            const orientation = parseFloat(document.getElementById('camera-orientation').value) || 0;
+            const fov = parseFloat(document.getElementById('camera-fov').value) || 90;
+            
+            // Validation
+            if (!name) {
+                alert('Veuillez entrer un nom pour la caméra');
+                return;
+            }
+            if (!isWebcam && !streamUrl) {
+                alert('Veuillez entrer l\'URL du flux RTSP');
+                return;
+            }
+            if (!planId) {
+                alert('Veuillez sélectionner un plan');
+                return;
+            }
+            if (currentPosition.x === 0 && currentPosition.y === 0) {
+                alert('Veuillez définir la position de la caméra sur le plan');
+                return;
+            }
+            
+            const data = {
+                name: name,
+                stream_url: streamUrl,
+                plan_id: planId,
+                x_plan: currentPosition.x,
+                y_plan: currentPosition.y,
+                orientation: orientation,
+                fov: fov,
+                is_webcam: isWebcam
+            };
+            
+            try {
+                const url = id ? `/api/admin/cameras/${id}` : '/api/admin/cameras';
+                const method = id ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (!response.ok) {
+                    const error = await response.text();
+                    throw new Error(error || 'Erreur serveur');
+                }
+                
+                location.reload();
+            } catch (err) {
+                alert('Erreur: ' + err.message);
+            }
+        }
+        
+        async function deleteCamera(id) {
+            if (!confirm('Supprimer cette caméra ?')) return;
+            
+            try {
+                const response = await fetch(`/api/admin/cameras/${id}`, { method: 'DELETE' });
+                if (!response.ok) throw new Error('Erreur serveur');
+                location.reload();
+            } catch (err) {
+                alert('Erreur: ' + err.message);
+            }
+        }
     </script>
 </body>
 </html>
