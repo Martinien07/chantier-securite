@@ -59,6 +59,21 @@ func (q *Queries) CountActiveAlerts(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countActiveAlertsBySite = `-- name: CountActiveAlertsBySite :one
+SELECT COUNT(*) FROM alerts a
+JOIN risk_events re ON a.risk_event_id = re.id
+JOIN zones z ON re.zone_id = z.id
+JOIN plans p ON z.plan_id = p.id
+WHERE a.status = 'new' AND p.site_id = ?
+`
+
+func (q *Queries) CountActiveAlertsBySite(ctx context.Context, siteID *int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countActiveAlertsBySite, siteID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countActiveCameras = `-- name: CountActiveCameras :one
 SELECT COUNT(*) FROM cameras
 `
@@ -81,13 +96,39 @@ func (q *Queries) CountAlertsToday(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countCamerasBySite = `-- name: CountCamerasBySite :one
+SELECT COUNT(*) FROM cameras c
+JOIN plans p ON c.plan_id = p.id
+WHERE p.site_id = ?
+`
+
+func (q *Queries) CountCamerasBySite(ctx context.Context, siteID *int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countCamerasBySite, siteID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countDetectionsToday = `-- name: CountDetectionsToday :one
 SELECT COUNT(*) FROM detections WHERE date(timestamp) = date('now')
 `
 
-// Detections (for stats)
 func (q *Queries) CountDetectionsToday(ctx context.Context) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countDetectionsToday)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countDetectionsTodayBySite = `-- name: CountDetectionsTodayBySite :one
+SELECT COUNT(*) FROM detections d
+JOIN cameras c ON d.camera_id = c.id
+JOIN plans p ON c.plan_id = p.id
+WHERE date(d.timestamp) = date('now') AND p.site_id = ?
+`
+
+func (q *Queries) CountDetectionsTodayBySite(ctx context.Context, siteID *int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countDetectionsTodayBySite, siteID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -104,8 +145,21 @@ func (q *Queries) CountHighRiskZones(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countHighRiskZonesBySite = `-- name: CountHighRiskZonesBySite :one
+SELECT COUNT(*) FROM zones z
+JOIN plans p ON z.plan_id = p.id
+WHERE z.risk_level = 'HIGH' AND z.is_active = 1 AND p.site_id = ?
+`
+
+func (q *Queries) CountHighRiskZonesBySite(ctx context.Context, siteID *int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countHighRiskZonesBySite, siteID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createCamera = `-- name: CreateCamera :one
-INSERT INTO cameras (plan_id, name, stream_url, x_plan, y_plan, orientation, fov, is_webcam) 
+INSERT INTO cameras (plan_id, name, stream_url, x_plan, y_plan, orientation, fov, is_webcam)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, plan_id, name, stream_url, x_plan, y_plan, orientation, fov, calibration_matrix, confidence_config, is_webcam, created_at
 `
 
@@ -150,7 +204,7 @@ func (q *Queries) CreateCamera(ctx context.Context, arg CreateCameraParams) (Cam
 }
 
 const createHSERule = `-- name: CreateHSERule :one
-INSERT INTO hse_rules (name, description, condition_logic, severity, is_active) 
+INSERT INTO hse_rules (name, description, condition_logic, severity, is_active)
 VALUES (?, ?, ?, ?, ?) RETURNING id, name, description, condition_logic, severity, is_active
 `
 
@@ -270,7 +324,7 @@ func (q *Queries) CreateSite(ctx context.Context, arg CreateSiteParams) (Site, e
 }
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (username, email, password_hash, is_active) VALUES (?, ?, ?, 1) RETURNING id, username, email, password_hash, is_active, created_at, last_login
+INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?) RETURNING id, username, email, password_hash, is_active, created_at, last_login
 `
 
 type CreateUserParams struct {
@@ -295,7 +349,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 }
 
 const createZone = `-- name: CreateZone :one
-INSERT INTO zones (plan_id, name, type, polygon, risk_level, is_active) 
+INSERT INTO zones (plan_id, name, type, polygon, risk_level, is_active)
 VALUES (?, ?, ?, ?, ?, 1) RETURNING id, plan_id, name, type, polygon, risk_level, is_active, created_at
 `
 
@@ -384,7 +438,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id int64) error {
 }
 
 const deleteZone = `-- name: DeleteZone :exec
-UPDATE zones SET is_active = 0 WHERE id = ?
+DELETE FROM zones WHERE id = ?
 `
 
 func (q *Queries) DeleteZone(ctx context.Context, id int64) error {
@@ -472,36 +526,19 @@ func (q *Queries) GetPlan(ctx context.Context, id int64) (Plan, error) {
 }
 
 const getRecentDetections = `-- name: GetRecentDetections :many
-SELECT d.id, d.camera_id, d.timestamp, d.object_class, d.confidence, d.bbox_x, d.bbox_y, d.bbox_w, d.bbox_h, d.track_id, c.name as camera_name 
-FROM detections d
-LEFT JOIN cameras c ON d.camera_id = c.id
-ORDER BY d.timestamp DESC
-LIMIT ?
+SELECT id, camera_id, timestamp, object_class, confidence, bbox_x, bbox_y, bbox_w, bbox_h, track_id FROM detections ORDER BY timestamp DESC LIMIT ?
 `
 
-type GetRecentDetectionsRow struct {
-	ID          int64     `json:"id"`
-	CameraID    *int64    `json:"camera_id"`
-	Timestamp   time.Time `json:"timestamp"`
-	ObjectClass *string   `json:"object_class"`
-	Confidence  *float64  `json:"confidence"`
-	BboxX       *float64  `json:"bbox_x"`
-	BboxY       *float64  `json:"bbox_y"`
-	BboxW       *float64  `json:"bbox_w"`
-	BboxH       *float64  `json:"bbox_h"`
-	TrackID     *int64    `json:"track_id"`
-	CameraName  *string   `json:"camera_name"`
-}
-
-func (q *Queries) GetRecentDetections(ctx context.Context, limit int64) ([]GetRecentDetectionsRow, error) {
+// Detections
+func (q *Queries) GetRecentDetections(ctx context.Context, limit int64) ([]Detection, error) {
 	rows, err := q.db.QueryContext(ctx, getRecentDetections, limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []GetRecentDetectionsRow{}
+	items := []Detection{}
 	for rows.Next() {
-		var i GetRecentDetectionsRow
+		var i Detection
 		if err := rows.Scan(
 			&i.ID,
 			&i.CameraID,
@@ -513,7 +550,53 @@ func (q *Queries) GetRecentDetections(ctx context.Context, limit int64) ([]GetRe
 			&i.BboxW,
 			&i.BboxH,
 			&i.TrackID,
-			&i.CameraName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getRecentDetectionsBySite = `-- name: GetRecentDetectionsBySite :many
+SELECT d.id, d.camera_id, d.timestamp, d.object_class, d.confidence, d.bbox_x, d.bbox_y, d.bbox_w, d.bbox_h, d.track_id FROM detections d
+JOIN cameras c ON d.camera_id = c.id
+JOIN plans p ON c.plan_id = p.id
+WHERE p.site_id = ?
+ORDER BY d.timestamp DESC LIMIT ?
+`
+
+type GetRecentDetectionsBySiteParams struct {
+	SiteID *int64 `json:"site_id"`
+	Limit  int64  `json:"limit"`
+}
+
+func (q *Queries) GetRecentDetectionsBySite(ctx context.Context, arg GetRecentDetectionsBySiteParams) ([]Detection, error) {
+	rows, err := q.db.QueryContext(ctx, getRecentDetectionsBySite, arg.SiteID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Detection{}
+	for rows.Next() {
+		var i Detection
+		if err := rows.Scan(
+			&i.ID,
+			&i.CameraID,
+			&i.Timestamp,
+			&i.ObjectClass,
+			&i.Confidence,
+			&i.BboxX,
+			&i.BboxY,
+			&i.BboxW,
+			&i.BboxH,
+			&i.TrackID,
 		); err != nil {
 			return nil, err
 		}
@@ -605,12 +688,9 @@ func (q *Queries) GetZone(ctx context.Context, id int64) (Zone, error) {
 }
 
 const listActiveAlerts = `-- name: ListActiveAlerts :many
-SELECT a.id, a.risk_event_id, a.alert_level, a.status, a.sent_at, a.acknowledged_at, re.risk_score, re.risk_level as event_risk_level, re.explanation,
-       z.name as zone_name, hr.name as rule_name
-FROM alerts a
+SELECT a.id, a.risk_event_id, a.alert_level, a.status, a.sent_at, a.acknowledged_at, re.explanation, z.name as zone_name FROM alerts a
 LEFT JOIN risk_events re ON a.risk_event_id = re.id
 LEFT JOIN zones z ON re.zone_id = z.id
-LEFT JOIN hse_rules hr ON re.rule_id = hr.id
 WHERE a.status = 'new'
 ORDER BY a.sent_at DESC
 `
@@ -622,11 +702,8 @@ type ListActiveAlertsRow struct {
 	Status         *string    `json:"status"`
 	SentAt         time.Time  `json:"sent_at"`
 	AcknowledgedAt *time.Time `json:"acknowledged_at"`
-	RiskScore      *float64   `json:"risk_score"`
-	EventRiskLevel *string    `json:"event_risk_level"`
 	Explanation    *string    `json:"explanation"`
 	ZoneName       *string    `json:"zone_name"`
-	RuleName       *string    `json:"rule_name"`
 }
 
 func (q *Queries) ListActiveAlerts(ctx context.Context) ([]ListActiveAlertsRow, error) {
@@ -645,11 +722,8 @@ func (q *Queries) ListActiveAlerts(ctx context.Context) ([]ListActiveAlertsRow, 
 			&i.Status,
 			&i.SentAt,
 			&i.AcknowledgedAt,
-			&i.RiskScore,
-			&i.EventRiskLevel,
 			&i.Explanation,
 			&i.ZoneName,
-			&i.RuleName,
 		); err != nil {
 			return nil, err
 		}
@@ -665,14 +739,10 @@ func (q *Queries) ListActiveAlerts(ctx context.Context) ([]ListActiveAlertsRow, 
 }
 
 const listAlerts = `-- name: ListAlerts :many
-SELECT a.id, a.risk_event_id, a.alert_level, a.status, a.sent_at, a.acknowledged_at, re.risk_score, re.risk_level as event_risk_level, re.explanation,
-       z.name as zone_name, hr.name as rule_name
-FROM alerts a
+SELECT a.id, a.risk_event_id, a.alert_level, a.status, a.sent_at, a.acknowledged_at, re.explanation, z.name as zone_name FROM alerts a
 LEFT JOIN risk_events re ON a.risk_event_id = re.id
 LEFT JOIN zones z ON re.zone_id = z.id
-LEFT JOIN hse_rules hr ON re.rule_id = hr.id
-ORDER BY a.sent_at DESC
-LIMIT ?
+ORDER BY a.sent_at DESC LIMIT ?
 `
 
 type ListAlertsRow struct {
@@ -682,11 +752,8 @@ type ListAlertsRow struct {
 	Status         *string    `json:"status"`
 	SentAt         time.Time  `json:"sent_at"`
 	AcknowledgedAt *time.Time `json:"acknowledged_at"`
-	RiskScore      *float64   `json:"risk_score"`
-	EventRiskLevel *string    `json:"event_risk_level"`
 	Explanation    *string    `json:"explanation"`
 	ZoneName       *string    `json:"zone_name"`
-	RuleName       *string    `json:"rule_name"`
 }
 
 // Alerts
@@ -706,11 +773,60 @@ func (q *Queries) ListAlerts(ctx context.Context, limit int64) ([]ListAlertsRow,
 			&i.Status,
 			&i.SentAt,
 			&i.AcknowledgedAt,
-			&i.RiskScore,
-			&i.EventRiskLevel,
 			&i.Explanation,
 			&i.ZoneName,
-			&i.RuleName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAlertsBySite = `-- name: ListAlertsBySite :many
+SELECT a.id, a.risk_event_id, a.alert_level, a.status, a.sent_at, a.acknowledged_at, re.explanation, z.name as zone_name FROM alerts a
+LEFT JOIN risk_events re ON a.risk_event_id = re.id
+LEFT JOIN zones z ON re.zone_id = z.id
+LEFT JOIN plans p ON z.plan_id = p.id
+WHERE p.site_id = ?
+ORDER BY a.sent_at DESC LIMIT 50
+`
+
+type ListAlertsBySiteRow struct {
+	ID             int64      `json:"id"`
+	RiskEventID    *int64     `json:"risk_event_id"`
+	AlertLevel     *string    `json:"alert_level"`
+	Status         *string    `json:"status"`
+	SentAt         time.Time  `json:"sent_at"`
+	AcknowledgedAt *time.Time `json:"acknowledged_at"`
+	Explanation    *string    `json:"explanation"`
+	ZoneName       *string    `json:"zone_name"`
+}
+
+func (q *Queries) ListAlertsBySite(ctx context.Context, siteID *int64) ([]ListAlertsBySiteRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAlertsBySite, siteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAlertsBySiteRow{}
+	for rows.Next() {
+		var i ListAlertsBySiteRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.RiskEventID,
+			&i.AlertLevel,
+			&i.Status,
+			&i.SentAt,
+			&i.AcknowledgedAt,
+			&i.Explanation,
+			&i.ZoneName,
 		); err != nil {
 			return nil, err
 		}
@@ -726,11 +842,10 @@ func (q *Queries) ListAlerts(ctx context.Context, limit int64) ([]ListAlertsRow,
 }
 
 const listCameras = `-- name: ListCameras :many
-SELECT c.id, c.plan_id, c.name, c.stream_url, c.x_plan, c.y_plan, c.orientation, c.fov, c.calibration_matrix, c.confidence_config, c.is_webcam, c.created_at, p.level as plan_level, s.name as site_name 
-FROM cameras c 
-LEFT JOIN plans p ON c.plan_id = p.id 
-LEFT JOIN sites s ON p.site_id = s.id 
-ORDER BY s.name, p.level, c.name
+SELECT c.id, c.plan_id, c.name, c.stream_url, c.x_plan, c.y_plan, c.orientation, c.fov, c.calibration_matrix, c.confidence_config, c.is_webcam, c.created_at, p.level as plan_level, s.name as site_name FROM cameras c
+LEFT JOIN plans p ON c.plan_id = p.id
+LEFT JOIN sites s ON p.site_id = s.id
+ORDER BY s.name, c.name
 `
 
 type ListCamerasRow struct {
@@ -790,7 +905,7 @@ func (q *Queries) ListCameras(ctx context.Context) ([]ListCamerasRow, error) {
 }
 
 const listCamerasByPlan = `-- name: ListCamerasByPlan :many
-SELECT id, plan_id, name, stream_url, x_plan, y_plan, orientation, fov, calibration_matrix, confidence_config, is_webcam, created_at FROM cameras WHERE plan_id = ? ORDER BY name
+SELECT id, plan_id, name, stream_url, x_plan, y_plan, orientation, fov, calibration_matrix, confidence_config, is_webcam, created_at FROM cameras WHERE plan_id = ?
 `
 
 func (q *Queries) ListCamerasByPlan(ctx context.Context, planID *int64) ([]Camera, error) {
@@ -829,8 +944,68 @@ func (q *Queries) ListCamerasByPlan(ctx context.Context, planID *int64) ([]Camer
 	return items, nil
 }
 
+const listCamerasBySite = `-- name: ListCamerasBySite :many
+SELECT c.id, c.plan_id, c.name, c.stream_url, c.x_plan, c.y_plan, c.orientation, c.fov, c.calibration_matrix, c.confidence_config, c.is_webcam, c.created_at, p.level as plan_level FROM cameras c
+JOIN plans p ON c.plan_id = p.id
+WHERE p.site_id = ?
+ORDER BY c.name
+`
+
+type ListCamerasBySiteRow struct {
+	ID                int64     `json:"id"`
+	PlanID            *int64    `json:"plan_id"`
+	Name              *string   `json:"name"`
+	StreamUrl         *string   `json:"stream_url"`
+	XPlan             *float64  `json:"x_plan"`
+	YPlan             *float64  `json:"y_plan"`
+	Orientation       *float64  `json:"orientation"`
+	Fov               *float64  `json:"fov"`
+	CalibrationMatrix *string   `json:"calibration_matrix"`
+	ConfidenceConfig  *string   `json:"confidence_config"`
+	IsWebcam          *int64    `json:"is_webcam"`
+	CreatedAt         time.Time `json:"created_at"`
+	PlanLevel         *string   `json:"plan_level"`
+}
+
+func (q *Queries) ListCamerasBySite(ctx context.Context, siteID *int64) ([]ListCamerasBySiteRow, error) {
+	rows, err := q.db.QueryContext(ctx, listCamerasBySite, siteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCamerasBySiteRow{}
+	for rows.Next() {
+		var i ListCamerasBySiteRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.PlanID,
+			&i.Name,
+			&i.StreamUrl,
+			&i.XPlan,
+			&i.YPlan,
+			&i.Orientation,
+			&i.Fov,
+			&i.CalibrationMatrix,
+			&i.ConfidenceConfig,
+			&i.IsWebcam,
+			&i.CreatedAt,
+			&i.PlanLevel,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listHSERules = `-- name: ListHSERules :many
-SELECT id, name, description, condition_logic, severity, is_active FROM hse_rules ORDER BY severity DESC, name
+SELECT id, name, description, condition_logic, severity, is_active FROM hse_rules ORDER BY severity DESC
 `
 
 // HSE Rules
@@ -865,7 +1040,7 @@ func (q *Queries) ListHSERules(ctx context.Context) ([]HseRule, error) {
 }
 
 const listModels = `-- name: ListModels :many
-SELECT id, name, type, version, trained_at, metrics, is_active FROM models ORDER BY name, version DESC
+SELECT id, name, type, version, trained_at, metrics, is_active FROM models ORDER BY name
 `
 
 // Models
@@ -901,7 +1076,9 @@ func (q *Queries) ListModels(ctx context.Context) ([]Model, error) {
 }
 
 const listPlans = `-- name: ListPlans :many
-SELECT p.id, p.site_id, p.level, p.image_path, p.scale_factor, p.created_at, s.name as site_name FROM plans p LEFT JOIN sites s ON p.site_id = s.id ORDER BY s.name, p.level
+SELECT p.id, p.site_id, p.level, p.image_path, p.scale_factor, p.created_at, s.name as site_name FROM plans p
+JOIN sites s ON p.site_id = s.id
+ORDER BY s.name, p.level
 `
 
 type ListPlansRow struct {
@@ -911,7 +1088,7 @@ type ListPlansRow struct {
 	ImagePath   *string   `json:"image_path"`
 	ScaleFactor *float64  `json:"scale_factor"`
 	CreatedAt   time.Time `json:"created_at"`
-	SiteName    *string   `json:"site_name"`
+	SiteName    string    `json:"site_name"`
 }
 
 // Plans
@@ -1049,23 +1226,15 @@ func (q *Queries) ListSites(ctx context.Context) ([]Site, error) {
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT u.id, u.username, u.email, u.password_hash, u.is_active, u.created_at, u.last_login, GROUP_CONCAT(r.name) as roles
-FROM users u 
-LEFT JOIN user_roles ur ON u.id = ur.user_id 
-LEFT JOIN roles r ON ur.role_id = r.id
-GROUP BY u.id
-ORDER BY u.username
+SELECT id, username, email, is_active, created_at FROM users ORDER BY username
 `
 
 type ListUsersRow struct {
-	ID           int64      `json:"id"`
-	Username     string     `json:"username"`
-	Email        string     `json:"email"`
-	PasswordHash string     `json:"password_hash"`
-	IsActive     *int64     `json:"is_active"`
-	CreatedAt    time.Time  `json:"created_at"`
-	LastLogin    *time.Time `json:"last_login"`
-	Roles        string     `json:"roles"`
+	ID        int64     `json:"id"`
+	Username  string    `json:"username"`
+	Email     string    `json:"email"`
+	IsActive  *int64    `json:"is_active"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // Users
@@ -1082,11 +1251,8 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 			&i.ID,
 			&i.Username,
 			&i.Email,
-			&i.PasswordHash,
 			&i.IsActive,
 			&i.CreatedAt,
-			&i.LastLogin,
-			&i.Roles,
 		); err != nil {
 			return nil, err
 		}
@@ -1102,12 +1268,10 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 }
 
 const listZones = `-- name: ListZones :many
-SELECT z.id, z.plan_id, z.name, z.type, z.polygon, z.risk_level, z.is_active, z.created_at, p.level as plan_level, s.name as site_name 
-FROM zones z 
-LEFT JOIN plans p ON z.plan_id = p.id 
-LEFT JOIN sites s ON p.site_id = s.id 
-WHERE z.is_active = 1
-ORDER BY s.name, p.level, z.name
+SELECT z.id, z.plan_id, z.name, z.type, z.polygon, z.risk_level, z.is_active, z.created_at, p.level as plan_level, s.name as site_name FROM zones z
+LEFT JOIN plans p ON z.plan_id = p.id
+LEFT JOIN sites s ON p.site_id = s.id
+ORDER BY s.name, z.name
 `
 
 type ListZonesRow struct {
@@ -1159,7 +1323,7 @@ func (q *Queries) ListZones(ctx context.Context) ([]ListZonesRow, error) {
 }
 
 const listZonesByPlan = `-- name: ListZonesByPlan :many
-SELECT id, plan_id, name, type, polygon, risk_level, is_active, created_at FROM zones WHERE plan_id = ? AND is_active = 1 ORDER BY name
+SELECT id, plan_id, name, type, polygon, risk_level, is_active, created_at FROM zones WHERE plan_id = ?
 `
 
 func (q *Queries) ListZonesByPlan(ctx context.Context, planID *int64) ([]Zone, error) {
@@ -1194,6 +1358,58 @@ func (q *Queries) ListZonesByPlan(ctx context.Context, planID *int64) ([]Zone, e
 	return items, nil
 }
 
+const listZonesBySite = `-- name: ListZonesBySite :many
+SELECT z.id, z.plan_id, z.name, z.type, z.polygon, z.risk_level, z.is_active, z.created_at, p.level as plan_level FROM zones z
+JOIN plans p ON z.plan_id = p.id
+WHERE p.site_id = ?
+ORDER BY z.name
+`
+
+type ListZonesBySiteRow struct {
+	ID        int64     `json:"id"`
+	PlanID    *int64    `json:"plan_id"`
+	Name      *string   `json:"name"`
+	Type      *string   `json:"type"`
+	Polygon   string    `json:"polygon"`
+	RiskLevel *string   `json:"risk_level"`
+	IsActive  *int64    `json:"is_active"`
+	CreatedAt time.Time `json:"created_at"`
+	PlanLevel *string   `json:"plan_level"`
+}
+
+func (q *Queries) ListZonesBySite(ctx context.Context, siteID *int64) ([]ListZonesBySiteRow, error) {
+	rows, err := q.db.QueryContext(ctx, listZonesBySite, siteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListZonesBySiteRow{}
+	for rows.Next() {
+		var i ListZonesBySiteRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.PlanID,
+			&i.Name,
+			&i.Type,
+			&i.Polygon,
+			&i.RiskLevel,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.PlanLevel,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const removeRole = `-- name: RemoveRole :exec
 DELETE FROM user_roles WHERE user_id = ? AND role_id = ?
 `
@@ -1208,12 +1424,50 @@ func (q *Queries) RemoveRole(ctx context.Context, arg RemoveRoleParams) error {
 	return err
 }
 
+const searchSites = `-- name: SearchSites :many
+SELECT id, name, location, description, confidence_config, created_at FROM sites WHERE name LIKE ? OR location LIKE ? ORDER BY name LIMIT 20
+`
+
+type SearchSitesParams struct {
+	Name     string  `json:"name"`
+	Location *string `json:"location"`
+}
+
+func (q *Queries) SearchSites(ctx context.Context, arg SearchSitesParams) ([]Site, error) {
+	rows, err := q.db.QueryContext(ctx, searchSites, arg.Name, arg.Location)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Site{}
+	for rows.Next() {
+		var i Site
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Location,
+			&i.Description,
+			&i.ConfidenceConfig,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateCamera = `-- name: UpdateCamera :exec
-UPDATE cameras SET plan_id = ?, name = ?, stream_url = ?, x_plan = ?, y_plan = ?, orientation = ?, fov = ?, is_webcam = ? WHERE id = ?
+UPDATE cameras SET name = ?, stream_url = ?, x_plan = ?, y_plan = ?, orientation = ?, fov = ?, is_webcam = ? WHERE id = ?
 `
 
 type UpdateCameraParams struct {
-	PlanID      *int64   `json:"plan_id"`
 	Name        *string  `json:"name"`
 	StreamUrl   *string  `json:"stream_url"`
 	XPlan       *float64 `json:"x_plan"`
@@ -1226,7 +1480,6 @@ type UpdateCameraParams struct {
 
 func (q *Queries) UpdateCamera(ctx context.Context, arg UpdateCameraParams) error {
 	_, err := q.db.ExecContext(ctx, updateCamera,
-		arg.PlanID,
 		arg.Name,
 		arg.StreamUrl,
 		arg.XPlan,
@@ -1290,11 +1543,10 @@ func (q *Queries) UpdateModel(ctx context.Context, arg UpdateModelParams) error 
 }
 
 const updatePlan = `-- name: UpdatePlan :exec
-UPDATE plans SET site_id = ?, level = ?, image_path = ?, scale_factor = ? WHERE id = ?
+UPDATE plans SET level = ?, image_path = ?, scale_factor = ? WHERE id = ?
 `
 
 type UpdatePlanParams struct {
-	SiteID      *int64   `json:"site_id"`
 	Level       *string  `json:"level"`
 	ImagePath   *string  `json:"image_path"`
 	ScaleFactor *float64 `json:"scale_factor"`
@@ -1303,7 +1555,6 @@ type UpdatePlanParams struct {
 
 func (q *Queries) UpdatePlan(ctx context.Context, arg UpdatePlanParams) error {
 	_, err := q.db.ExecContext(ctx, updatePlan,
-		arg.SiteID,
 		arg.Level,
 		arg.ImagePath,
 		arg.ScaleFactor,
@@ -1369,11 +1620,10 @@ func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPassword
 }
 
 const updateZone = `-- name: UpdateZone :exec
-UPDATE zones SET plan_id = ?, name = ?, type = ?, polygon = ?, risk_level = ?, is_active = ? WHERE id = ?
+UPDATE zones SET name = ?, type = ?, polygon = ?, risk_level = ?, is_active = ? WHERE id = ?
 `
 
 type UpdateZoneParams struct {
-	PlanID    *int64  `json:"plan_id"`
 	Name      *string `json:"name"`
 	Type      *string `json:"type"`
 	Polygon   string  `json:"polygon"`
@@ -1384,7 +1634,6 @@ type UpdateZoneParams struct {
 
 func (q *Queries) UpdateZone(ctx context.Context, arg UpdateZoneParams) error {
 	_, err := q.db.ExecContext(ctx, updateZone,
-		arg.PlanID,
 		arg.Name,
 		arg.Type,
 		arg.Polygon,

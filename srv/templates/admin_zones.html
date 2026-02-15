@@ -1,0 +1,103 @@
+{{define "admin_zones"}}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeSite AI - Zones</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="/static/style.css" rel="stylesheet">
+</head>
+<body>
+    <div class="d-flex">
+        {{template "sidebar" .}}
+        <main class="main-content">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="page-title mb-0"><i class="bi bi-geo-alt"></i> Zones de surveillance</h1>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addZoneModal"><i class="bi bi-plus me-2"></i>Nouvelle zone</button>
+            </div>
+            <div class="card">
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0">
+                        <thead><tr><th>Nom</th><th>Type</th><th>Niveau</th><th>Risque</th><th>Statut</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            {{range .Zones}}
+                            <tr>
+                                <td><strong>{{.Name}}</strong></td>
+                                <td>{{.Type}}</td>
+                                <td>{{.Level}}</td>
+                                <td><span class="badge badge-{{.RiskLevel}}">{{.RiskLevel}}</span></td>
+                                <td>{{if .IsActive}}<span class="badge bg-success">Active</span>{{else}}<span class="badge bg-secondary">Inactive</span>{{end}}</td>
+                                <td><button class="btn btn-sm btn-outline-danger" onclick="deleteZone({{.ID}})"><i class="bi bi-trash"></i></button></td>
+                            </tr>
+                            {{else}}
+                            <tr><td colspan="6" class="text-center py-4 text-muted">Aucune zone</td></tr>
+                            {{end}}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Modal ajout zone -->
+    <div class="modal fade" id="addZoneModal"><div class="modal-dialog"><div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title">Nouvelle zone</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+            <form id="addZoneForm">
+                <div class="mb-3"><label class="form-label">Plan</label>
+                    <select class="form-select" name="plan_id" required>
+                        {{range .Plans}}<option value="{{.ID}}">{{.Level}}</option>{{end}}
+                    </select>
+                </div>
+                <div class="mb-3"><label class="form-label">Nom</label><input type="text" class="form-control" name="name" required></div>
+                <div class="mb-3"><label class="form-label">Type</label>
+                    <select class="form-select" name="type">
+                        <option value="height">Travail en hauteur</option>
+                        <option value="machine">Zone machine</option>
+                        <option value="chemical">Zone chimique</option>
+                        <option value="traffic">Circulation</option>
+                        <option value="storage">Stockage</option>
+                        <option value="other">Autre</option>
+                    </select>
+                </div>
+                <div class="mb-3"><label class="form-label">Niveau de risque</label>
+                    <select class="form-select" name="risk_level">
+                        <option value="HIGH">Critique</option>
+                        <option value="MEDIUM">Moyen</option>
+                        <option value="LOW">Faible</option>
+                    </select>
+                </div>
+                <div class="mb-3"><label class="form-label">Polygone (JSON)</label>
+                    <textarea class="form-control" name="polygon" rows="3" placeholder='[[100,100],[200,100],[200,200],[100,200]]'></textarea>
+                    <div class="form-text">Coordonnées des points du polygone sur le plan</div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="button" class="btn btn-primary" onclick="addZone()">Créer</button></div>
+    </div></div></div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    function addZone() {
+        const fd = new FormData(document.getElementById('addZoneForm'));
+        fetch('/api/admin/zones', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                plan_id: parseInt(fd.get('plan_id')),
+                name: fd.get('name'),
+                type: fd.get('type'),
+                risk_level: fd.get('risk_level'),
+                polygon: fd.get('polygon') || '[]'
+            })
+        }).then(() => location.reload());
+    }
+    function deleteZone(id) {
+        if(confirm('Supprimer?')) fetch('/api/admin/zones/' + id, {method: 'DELETE'}).then(() => location.reload());
+    }
+    </script>
+</body>
+</html>
+{{end}}

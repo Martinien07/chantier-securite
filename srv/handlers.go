@@ -3,15 +3,45 @@ package srv
 import (
 	"context"
 	"net/http"
+
+	"srv.exe.dev/db/dbgen"
 )
 
+// Site selection handlers
+func (s *Server) HandleSelectSite(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	sites, _ := s.Queries.ListSites(ctx)
+	s.render(w, "select_site", map[string]any{"Sites": sites})
+}
+
+func (s *Server) HandleSetSite(w http.ResponseWriter, r *http.Request) {
+	siteID := r.FormValue("site_id")
+	http.SetCookie(w, &http.Cookie{
+		Name:     SiteCookieName,
+		Value:    siteID,
+		Path:     "/",
+		MaxAge:   86400 * 30, // 30 days
+		HttpOnly: true,
+	})
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+// Data structures for views
 type DashboardData struct {
+	Site            *SiteView
 	ActiveAlerts    int64
 	TotalCameras    int64
 	HighRiskZones   int64
 	DetectionsToday int64
 	Alerts          []AlertView
-	Sites           []SiteView
+	Plans           []PlanView
+}
+
+type SiteView struct {
+	ID          int64
+	Name        string
+	Location    string
+	Description string
 }
 
 type AlertView struct {
@@ -23,11 +53,11 @@ type AlertView struct {
 	SentAt      string
 }
 
-type SiteView struct {
+type PlanView struct {
 	ID          int64
-	Name        string
-	Location    string
-	Description string
+	Level       string
+	ImagePath   string
+	ScaleFactor float64
 }
 
 type CameraView struct {
@@ -35,7 +65,6 @@ type CameraView struct {
 	Name        string
 	StreamURL   string
 	PlanID      int64
-	SiteName    string
 	Level       string
 	XPlan       float64
 	YPlan       float64
@@ -48,28 +77,43 @@ type ZoneView struct {
 	ID        int64
 	Name      string
 	Type      string
+	Polygon   string
 	RiskLevel string
 	PlanID    int64
 	Level     string
-	SiteName  string
 	IsActive  bool
 }
 
+func (s *Server) siteViewFromDB(site *dbgen.Site) *SiteView {
+	if site == nil {
+		return nil
+	}
+	return &SiteView{
+		ID:          site.ID,
+		Name:        site.Name,
+		Location:    ptrStr(site.Location),
+		Description: ptrStr(site.Description),
+	}
+}
+
+// Dashboard handler
 func (s *Server) HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
 		return
 	}
 	ctx := context.Background()
+	site := s.getCurrentSite(r)
+	siteID := s.getCurrentSiteID(r)
 
-	activeAlerts, _ := s.Queries.CountActiveAlerts(ctx)
-	totalCameras, _ := s.Queries.CountActiveCameras(ctx)
-	highRiskZones, _ := s.Queries.CountHighRiskZones(ctx)
-	detections, _ := s.Queries.CountDetectionsToday(ctx)
+	// Count stats for this site
+	activeAlerts, _ := s.Queries.CountActiveAlertsBySite(ctx, &siteID)
+	totalCameras, _ := s.Queries.CountCamerasBySite(ctx, &siteID)
+	highRiskZones, _ := s.Queries.CountHighRiskZonesBySite(ctx, &siteID)
+	detections, _ := s.Queries.CountDetectionsTodayBySite(ctx, &siteID)
 
-	alerts, _ := s.Queries.ListAlerts(ctx, 10)
-	sites, _ := s.Queries.ListSites(ctx)
-
+	// Get alerts for this site
+	alerts, _ := s.Queries.ListAlertsBySite(ctx, &siteID)
 	var alertViews []AlertView
 	for _, a := range alerts {
 		alertViews = append(alertViews, AlertView{
@@ -82,30 +126,36 @@ func (s *Server) HandleDashboard(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	var siteViews []SiteView
-	for _, site := range sites {
-		siteViews = append(siteViews, SiteView{
-			ID:          site.ID,
-			Name:        site.Name,
-			Location:    ptrStr(site.Location),
-			Description: ptrStr(site.Description),
+	// Get plans for this site
+	plans, _ := s.Queries.ListPlansBySite(ctx, &siteID)
+	var planViews []PlanView
+	for _, p := range plans {
+		planViews = append(planViews, PlanView{
+			ID:          p.ID,
+			Level:       ptrStr(p.Level),
+			ImagePath:   ptrStr(p.ImagePath),
+			ScaleFactor: ptrFloat(p.ScaleFactor),
 		})
 	}
 
 	data := DashboardData{
+		Site:            s.siteViewFromDB(site),
 		ActiveAlerts:    activeAlerts,
 		TotalCameras:    totalCameras,
 		HighRiskZones:   highRiskZones,
 		DetectionsToday: detections,
 		Alerts:          alertViews,
-		Sites:           siteViews,
+		Plans:           planViews,
 	}
 	s.render(w, "dashboard", data)
 }
 
+// Other page handlers
 func (s *Server) HandleCameras(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
-	cameras, _ := s.Queries.ListCameras(ctx)
+	site := s.getCurrentSite(r)
+	siteID := s.getCurrentSiteID(r)
+	cameras, _ := s.Queries.ListCamerasBySite(ctx, &siteID)
 
 	var views []CameraView
 	for _, c := range cameras {
@@ -114,7 +164,6 @@ func (s *Server) HandleCameras(w http.ResponseWriter, r *http.Request) {
 			Name:        ptrStr(c.Name),
 			StreamURL:   ptrStr(c.StreamUrl),
 			PlanID:      ptrInt(c.PlanID),
-			SiteName:    ptrStr(c.SiteName),
 			Level:       ptrStr(c.PlanLevel),
 			XPlan:       ptrFloat(c.XPlan),
 			YPlan:       ptrFloat(c.YPlan),
@@ -123,12 +172,14 @@ func (s *Server) HandleCameras(w http.ResponseWriter, r *http.Request) {
 			IsWebcam:    ptrInt(c.IsWebcam) == 1,
 		})
 	}
-	s.render(w, "cameras", map[string]any{"Cameras": views})
+	s.render(w, "cameras", map[string]any{"Site": s.siteViewFromDB(site), "Cameras": views})
 }
 
 func (s *Server) HandleAlerts(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
-	alerts, _ := s.Queries.ListAlerts(ctx, 50)
+	site := s.getCurrentSite(r)
+	siteID := s.getCurrentSiteID(r)
+	alerts, _ := s.Queries.ListAlertsBySite(ctx, &siteID)
 
 	var views []AlertView
 	for _, a := range alerts {
@@ -141,12 +192,14 @@ func (s *Server) HandleAlerts(w http.ResponseWriter, r *http.Request) {
 			SentAt:      a.SentAt.Format("02/01 15:04"),
 		})
 	}
-	s.render(w, "alertes", map[string]any{"Alerts": views})
+	s.render(w, "alertes", map[string]any{"Site": s.siteViewFromDB(site), "Alerts": views})
 }
 
 func (s *Server) HandleZones(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
-	zones, _ := s.Queries.ListZones(ctx)
+	site := s.getCurrentSite(r)
+	siteID := s.getCurrentSiteID(r)
+	zones, _ := s.Queries.ListZonesBySite(ctx, &siteID)
 
 	var views []ZoneView
 	for _, z := range zones {
@@ -154,23 +207,30 @@ func (s *Server) HandleZones(w http.ResponseWriter, r *http.Request) {
 			ID:        z.ID,
 			Name:      ptrStr(z.Name),
 			Type:      ptrStr(z.Type),
+			Polygon:   z.Polygon,
 			RiskLevel: ptrStr(z.RiskLevel),
 			PlanID:    ptrInt(z.PlanID),
 			Level:     ptrStr(z.PlanLevel),
-			SiteName:  ptrStr(z.SiteName),
 			IsActive:  ptrInt(z.IsActive) == 1,
 		})
 	}
-	s.render(w, "zones", map[string]any{"Zones": views})
+	s.render(w, "zones", map[string]any{"Site": s.siteViewFromDB(site), "Zones": views})
 }
 
 func (s *Server) HandleAnalyses(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
+	site := s.getCurrentSite(r)
 	models, _ := s.Queries.ListModels(ctx)
 	rules, _ := s.Queries.ListHSERules(ctx)
-	s.render(w, "analyses", map[string]any{"Models": models, "Rules": rules})
+	s.render(w, "analyses", map[string]any{"Site": s.siteViewFromDB(site), "Models": models, "Rules": rules})
 }
 
 func (s *Server) HandleRapports(w http.ResponseWriter, r *http.Request) {
-	s.render(w, "rapports", nil)
+	site := s.getCurrentSite(r)
+	s.render(w, "rapports", map[string]any{"Site": s.siteViewFromDB(site)})
 }
+
+// Type alias for template use
+type dbgenSite = dbgen.Site
+
+var _ dbgenSite // silence unused warning

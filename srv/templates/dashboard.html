@@ -4,87 +4,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SafeSite AI - Tableau de bord</title>
+    <title>SafeSite AI - {{.Site.Name}}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <link href="/static/style.css" rel="stylesheet">
 </head>
 <body>
     <div class="d-flex">
-        {{template "sidebar"}}
+        {{template "sidebar" .}}
         <main class="main-content">
             <h1 class="page-title"><i class="bi bi-speedometer2"></i> Tableau de bord</h1>
+            
+            <!-- Stats -->
             <div class="row g-4 mb-4">
                 <div class="col-md-3">
-                    <div class="stat-card danger">
-                        <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
-                        <div class="stat-value">{{.ActiveAlerts}}</div>
-                        <div class="stat-label">Alertes actives</div>
-                    </div>
+                    <div class="stat-card danger"><div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div><div class="stat-value">{{.ActiveAlerts}}</div><div class="stat-label">Alertes actives</div></div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card primary">
-                        <div class="stat-icon"><i class="bi bi-camera-video"></i></div>
-                        <div class="stat-value">{{.TotalCameras}}</div>
-                        <div class="stat-label">Caméras</div>
-                    </div>
+                    <div class="stat-card primary"><div class="stat-icon"><i class="bi bi-camera-video"></i></div><div class="stat-value">{{.TotalCameras}}</div><div class="stat-label">Caméras</div></div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card warning">
-                        <div class="stat-icon"><i class="bi bi-geo-alt"></i></div>
-                        <div class="stat-value">{{.HighRiskZones}}</div>
-                        <div class="stat-label">Zones à haut risque</div>
-                    </div>
+                    <div class="stat-card warning"><div class="stat-icon"><i class="bi bi-geo-alt"></i></div><div class="stat-value">{{.HighRiskZones}}</div><div class="stat-label">Zones haut risque</div></div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card success">
-                        <div class="stat-icon"><i class="bi bi-eye"></i></div>
-                        <div class="stat-value">{{.DetectionsToday}}</div>
-                        <div class="stat-label">Détections aujourd'hui</div>
-                    </div>
+                    <div class="stat-card success"><div class="stat-icon"><i class="bi bi-eye"></i></div><div class="stat-value">{{.DetectionsToday}}</div><div class="stat-label">Détections</div></div>
                 </div>
             </div>
+            
             <div class="row g-4">
+                <!-- Plan interactif -->
                 <div class="col-lg-8">
                     <div class="card">
                         <div class="card-header d-flex justify-content-between align-items-center">
-                            <span><i class="bi bi-exclamation-triangle me-2"></i>Alertes récentes</span>
-                            <a href="/alertes" class="btn btn-sm btn-outline-primary">Voir tout</a>
-                        </div>
-                        <div class="card-body p-0">
-                            <table class="table table-hover mb-0">
-                                <thead><tr><th>Niveau</th><th>Zone</th><th>Description</th><th>Heure</th><th>Statut</th></tr></thead>
-                                <tbody>
-                                    {{range .Alerts}}
-                                    <tr>
-                                        <td><span class="badge badge-{{.Level}}">{{.Level}}</span></td>
-                                        <td>{{.ZoneName}}</td>
-                                        <td>{{.Explanation}}</td>
-                                        <td>{{.SentAt}}</td>
-                                        <td><span class="badge badge-{{.Status}}">{{.Status}}</span></td>
-                                    </tr>
-                                    {{else}}
-                                    <tr><td colspan="5" class="text-center text-muted py-4">Aucune alerte</td></tr>
+                            <span><i class="bi bi-map me-2"></i>Plan du site</span>
+                            <div class="d-flex gap-2 align-items-center">
+                                <select class="form-select form-select-sm" id="levelSelect" style="width:auto" onchange="loadPlan(this.value)">
+                                    <option value="">Choisir un niveau...</option>
+                                    {{range .Plans}}
+                                    <option value="{{.ID}}">{{.Level}}</option>
                                     {{end}}
-                                </tbody>
-                            </table>
+                                </select>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-secondary" onclick="zoomIn()" title="Zoom +"><i class="bi bi-zoom-in"></i></button>
+                                    <button class="btn btn-outline-secondary" onclick="zoomOut()" title="Zoom -"><i class="bi bi-zoom-out"></i></button>
+                                    <button class="btn btn-outline-secondary" onclick="rotateLeft()" title="Rotation gauche"><i class="bi bi-arrow-counterclockwise"></i></button>
+                                    <button class="btn btn-outline-secondary" onclick="rotateRight()" title="Rotation droite"><i class="bi bi-arrow-clockwise"></i></button>
+                                    <button class="btn btn-outline-secondary" onclick="resetView()" title="Reset"><i class="bi bi-arrows-fullscreen"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="plan-container" id="planContainer">
+                            <div class="plan-wrapper" id="planWrapper">
+                                <img id="planImage" src="" alt="Plan" style="display:none">
+                                <svg id="planOverlay" class="plan-overlay"></svg>
+                            </div>
+                            <div class="plan-placeholder" id="planPlaceholder">
+                                <i class="bi bi-map"></i>
+                                <p>Sélectionnez un niveau pour afficher le plan</p>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <div class="d-flex gap-3 small">
+                                <span><span class="legend-dot camera"></span> Caméra</span>
+                                <span><span class="legend-dot zone-high"></span> Zone critique</span>
+                                <span><span class="legend-dot zone-medium"></span> Zone moyenne</span>
+                                <span><span class="legend-dot zone-low"></span> Zone faible</span>
+                            </div>
                         </div>
                     </div>
                 </div>
+                
+                <!-- Alertes récentes -->
                 <div class="col-lg-4">
                     <div class="card">
-                        <div class="card-header"><i class="bi bi-building me-2"></i>Sites surveillés</div>
-                        <div class="card-body">
-                            {{range .Sites}}
-                            <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
-                                <div>
-                                    <strong>{{.Name}}</strong>
-                                    <div class="small text-muted">{{.Location}}</div>
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-exclamation-triangle me-2"></i>Alertes</span>
+                            <a href="/alertes" class="btn btn-sm btn-outline-primary">Voir tout</a>
+                        </div>
+                        <div class="alert-list">
+                            {{range .Alerts}}
+                            <div class="alert-item {{.Level}}">
+                                <div class="alert-badge">{{.Level}}</div>
+                                <div class="alert-info">
+                                    <div class="alert-zone">{{.ZoneName}}</div>
+                                    <div class="alert-desc">{{.Explanation}}</div>
+                                    <div class="alert-time"><i class="bi bi-clock"></i> {{.SentAt}}</div>
                                 </div>
-                                <a href="/admin/sites" class="btn btn-sm btn-outline-primary"><i class="bi bi-arrow-right"></i></a>
                             </div>
                             {{else}}
-                            <p class="text-muted text-center">Aucun site</p>
+                            <div class="text-center text-muted py-4">Aucune alerte</div>
                             {{end}}
                         </div>
                     </div>
@@ -92,7 +100,151 @@
             </div>
         </main>
     </div>
+    
+    <!-- Modal caméra -->
+    <div class="modal fade" id="cameraModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-camera-video me-2"></i><span id="cameraModalTitle">Caméra</span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="camera-feed" id="cameraFeed">
+                        <video id="cameraVideo" autoplay muted playsinline></video>
+                        <div class="camera-offline" id="cameraOffline"><i class="bi bi-camera-video-off"></i><p>Flux non disponible</p></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    let currentPlan = null;
+    let currentZoom = 1;
+    let currentRotation = 0;
+    let cameras = [];
+    let zones = [];
+    
+    function loadPlan(planId) {
+        if (!planId) {
+            document.getElementById('planPlaceholder').style.display = 'flex';
+            document.getElementById('planImage').style.display = 'none';
+            document.getElementById('planOverlay').innerHTML = '';
+            return;
+        }
+        
+        fetch('/api/plans/' + planId + '/data')
+            .then(r => r.json())
+            .then(data => {
+                currentPlan = data.plan;
+                cameras = data.cameras || [];
+                zones = data.zones || [];
+                
+                if (data.plan.image_path) {
+                    document.getElementById('planImage').src = data.plan.image_path;
+                    document.getElementById('planImage').style.display = 'block';
+                    document.getElementById('planPlaceholder').style.display = 'none';
+                    resetView();
+                    drawOverlay();
+                } else {
+                    document.getElementById('planPlaceholder').innerHTML = '<i class="bi bi-image"></i><p>Aucune image pour ce niveau</p>';
+                    document.getElementById('planPlaceholder').style.display = 'flex';
+                    document.getElementById('planImage').style.display = 'none';
+                }
+            });
+    }
+    
+    function drawOverlay() {
+        const svg = document.getElementById('planOverlay');
+        const img = document.getElementById('planImage');
+        svg.setAttribute('viewBox', '0 0 ' + img.naturalWidth + ' ' + img.naturalHeight);
+        
+        let html = '';
+        
+        // Draw zones
+        zones.forEach(zone => {
+            try {
+                const polygon = JSON.parse(zone.polygon);
+                if (Array.isArray(polygon) && polygon.length > 2) {
+                    const points = polygon.map(p => p.join(',')).join(' ');
+                    const color = zone.risk_level === 'HIGH' ? 'rgba(239,68,68,0.3)' : 
+                                  zone.risk_level === 'MEDIUM' ? 'rgba(245,158,11,0.3)' : 'rgba(16,185,129,0.3)';
+                    const stroke = zone.risk_level === 'HIGH' ? '#ef4444' : 
+                                   zone.risk_level === 'MEDIUM' ? '#f59e0b' : '#10b981';
+                    html += '<polygon points="' + points + '" fill="' + color + '" stroke="' + stroke + '" stroke-width="2" class="zone-polygon" data-zone="' + zone.id + '" data-name="' + zone.name + '"/>';
+                }
+            } catch(e) {}
+        });
+        
+        // Draw cameras
+        cameras.forEach(cam => {
+            const x = cam.x_plan || 50;
+            const y = cam.y_plan || 50;
+            html += '<g class="camera-marker" data-camera="' + cam.id + '" data-name="' + cam.name + '" data-webcam="' + (cam.is_webcam ? '1' : '0') + '" onclick="openCamera(' + cam.id + ', \'' + cam.name + '\', ' + (cam.is_webcam || 0) + ')" style="cursor:pointer">';
+            html += '<circle cx="' + x + '" cy="' + y + '" r="12" fill="#2563eb" stroke="white" stroke-width="2"/>';
+            html += '<text x="' + x + '" y="' + (y+4) + '" text-anchor="middle" fill="white" font-size="10" font-weight="bold"><tspan>\uf508</tspan></text>';
+            html += '</g>';
+        });
+        
+        svg.innerHTML = html;
+    }
+    
+    function zoomIn() { currentZoom = Math.min(currentZoom * 1.2, 5); applyTransform(); }
+    function zoomOut() { currentZoom = Math.max(currentZoom / 1.2, 0.5); applyTransform(); }
+    function rotateLeft() { currentRotation -= 90; applyTransform(); }
+    function rotateRight() { currentRotation += 90; applyTransform(); }
+    function resetView() { currentZoom = 1; currentRotation = 0; applyTransform(); }
+    
+    function applyTransform() {
+        const wrapper = document.getElementById('planWrapper');
+        wrapper.style.transform = 'scale(' + currentZoom + ') rotate(' + currentRotation + 'deg)';
+    }
+    
+    function openCamera(id, name, isWebcam) {
+        document.getElementById('cameraModalTitle').textContent = name;
+        const video = document.getElementById('cameraVideo');
+        const offline = document.getElementById('cameraOffline');
+        
+        video.style.display = 'none';
+        offline.style.display = 'none';
+        
+        if (isWebcam) {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    video.srcObject = stream;
+                    video.style.display = 'block';
+                })
+                .catch(() => {
+                    offline.style.display = 'flex';
+                });
+        } else {
+            offline.innerHTML = '<i class="bi bi-camera-video"></i><p>Flux RTSP - Connexion...</p>';
+            offline.style.display = 'flex';
+        }
+        
+        new bootstrap.Modal(document.getElementById('cameraModal')).show();
+    }
+    
+    // Stop video when modal closes
+    document.getElementById('cameraModal').addEventListener('hidden.bs.modal', () => {
+        const video = document.getElementById('cameraVideo');
+        if (video.srcObject) {
+            video.srcObject.getTracks().forEach(t => t.stop());
+            video.srcObject = null;
+        }
+    });
+    
+    // Auto-select first plan
+    window.onload = () => {
+        const select = document.getElementById('levelSelect');
+        if (select.options.length > 1) {
+            select.selectedIndex = 1;
+            loadPlan(select.value);
+        }
+    };
+    </script>
 </body>
 </html>
 {{end}}
@@ -100,6 +252,14 @@
 {{define "sidebar"}}
 <nav class="sidebar">
     <div class="sidebar-header"><i class="bi bi-shield-check"></i><span>SafeSite AI</span></div>
+    <div class="current-site">
+        <div class="site-badge"><i class="bi bi-building"></i></div>
+        <div class="site-info">
+            <div class="site-name">{{.Site.Name}}</div>
+            <div class="site-location">{{.Site.Location}}</div>
+        </div>
+        <a href="/select-site" class="btn btn-sm btn-outline-light" title="Changer de site"><i class="bi bi-arrow-repeat"></i></a>
+    </div>
     <ul class="nav flex-column">
         <li class="nav-item"><a class="nav-link" href="/"><i class="bi bi-speedometer2"></i> Tableau de bord</a></li>
         <li class="nav-item"><a class="nav-link" href="/cameras"><i class="bi bi-camera-video"></i> Caméras</a></li>

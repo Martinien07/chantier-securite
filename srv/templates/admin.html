@@ -11,12 +11,13 @@
 </head>
 <body>
     <div class="d-flex">
-        {{template "sidebar"}}
+        {{template "sidebar" .}}
         <main class="main-content">
             <h1 class="page-title"><i class="bi bi-gear"></i> Administration</h1>
             <div class="row g-4">
-                <div class="col-md-4"><a href="/admin/sites" class="admin-card card"><i class="bi bi-building"></i><h5>Sites</h5><div class="count">{{.SiteCount}}</div><div class="text-muted small">chantiers</div></a></div>
+                <div class="col-md-4"><a href="/admin/plans" class="admin-card card"><i class="bi bi-map"></i><h5>Plans</h5><div class="count">{{.PlanCount}}</div><div class="text-muted small">niveaux</div></a></div>
                 <div class="col-md-4"><a href="/admin/cameras" class="admin-card card"><i class="bi bi-camera-video"></i><h5>Caméras</h5><div class="count">{{.CameraCount}}</div><div class="text-muted small">actives</div></a></div>
+                <div class="col-md-4"><a href="/admin/zones" class="admin-card card"><i class="bi bi-geo-alt"></i><h5>Zones</h5><div class="count">{{.ZoneCount}}</div><div class="text-muted small">définies</div></a></div>
                 <div class="col-md-4"><a href="/admin/users" class="admin-card card"><i class="bi bi-people"></i><h5>Utilisateurs</h5><div class="count">{{.UserCount}}</div><div class="text-muted small">comptes</div></a></div>
                 <div class="col-md-4"><a href="/admin/rules" class="admin-card card"><i class="bi bi-shield-check"></i><h5>Règles HSE</h5><div class="count">{{.RuleCount}}</div><div class="text-muted small">règles</div></a></div>
                 <div class="col-md-4"><a href="/admin/models" class="admin-card card"><i class="bi bi-cpu"></i><h5>Modèles IA</h5><div class="count">{{.ModelCount}}</div><div class="text-muted small">modèles</div></a></div>
