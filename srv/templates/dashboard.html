@@ -291,7 +291,7 @@
     function loadPlan(planId) {
         if (!planId) return;
         
-        fetch(`/api/plan/${planId}/data`)
+        fetch(`/api/plans/${planId}/data`)
             .then(r => r.json())
             .then(data => {
                 const img = document.getElementById('plan-image');
