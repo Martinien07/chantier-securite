@@ -1,0 +1,73 @@
+{{define "admin_cameras"}}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeSite AI - Caméras</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="/static/style.css" rel="stylesheet">
+</head>
+<body>
+    <div class="d-flex">
+        {{template "sidebar"}}
+        <main class="main-content">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="page-title mb-0"><i class="bi bi-camera-video"></i> Gestion des caméras</h1>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCamModal"><i class="bi bi-plus me-2"></i>Nouvelle</button>
+            </div>
+            <div class="card">
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0">
+                        <thead><tr><th>ID</th><th>Nom</th><th>Site</th><th>Niveau</th><th>Type</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            {{range .Cameras}}
+                            <tr>
+                                <td>{{.ID}}</td>
+                                <td><strong>{{.Name}}</strong></td>
+                                <td>{{.SiteName}}</td>
+                                <td>{{.Level}}</td>
+                                <td>{{if .IsWebcam}}<span class="badge bg-primary"><i class="bi bi-webcam"></i> Webcam</span>{{else}}<span class="badge bg-secondary">RTSP</span>{{end}}</td>
+                                <td><button class="btn btn-sm btn-outline-danger" onclick="delCam({{.ID}})"><i class="bi bi-trash"></i></button></td>
+                            </tr>
+                            {{else}}
+                            <tr><td colspan="6" class="text-center py-4 text-muted">Aucune caméra</td></tr>
+                            {{end}}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+    <div class="modal fade" id="addCamModal"><div class="modal-dialog"><div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title">Nouvelle caméra</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+            <form id="addCamForm">
+                <div class="mb-3"><label class="form-label">Nom</label><input type="text" class="form-control" name="name" required></div>
+                <div class="mb-3"><label class="form-label">Type</label><select class="form-select" name="is_webcam" onchange="toggleUrl(this)"><option value="0">RTSP</option><option value="1">Webcam locale</option></select></div>
+                <div class="mb-3" id="urlGroup"><label class="form-label">URL RTSP</label><input type="text" class="form-control" name="stream_url" placeholder="rtsp://..."></div>
+                <div class="mb-3"><label class="form-label">Plan ID</label><input type="number" class="form-control" name="plan_id" value="1"></div>
+                <div class="row"><div class="col-6 mb-3"><label class="form-label">X</label><input type="number" class="form-control" name="x_plan" value="50"></div>
+                <div class="col-6 mb-3"><label class="form-label">Y</label><input type="number" class="form-control" name="y_plan" value="50"></div></div>
+                <div class="row"><div class="col-6 mb-3"><label class="form-label">Orientation</label><input type="number" class="form-control" name="orientation" value="90"></div>
+                <div class="col-6 mb-3"><label class="form-label">FOV</label><input type="number" class="form-control" name="fov" value="120"></div></div>
+            </form>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="button" class="btn btn-primary" onclick="addCam()">Créer</button></div>
+    </div></div></div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    function toggleUrl(sel) { document.getElementById('urlGroup').style.display = sel.value==='1'?'none':'block'; }
+    function addCam() {
+        const fd = new FormData(document.getElementById('addCamForm'));
+        const data = {name:fd.get('name'), stream_url:fd.get('stream_url')||'webcam', plan_id:parseInt(fd.get('plan_id')),
+            x_plan:parseFloat(fd.get('x_plan')), y_plan:parseFloat(fd.get('y_plan')), orientation:parseFloat(fd.get('orientation')),
+            fov:parseFloat(fd.get('fov')), is_webcam:fd.get('is_webcam')==='1'};
+        fetch('/api/admin/cameras', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)}).then(()=>location.reload());
+    }
+    function delCam(id) { if(confirm('Supprimer?')) fetch('/api/admin/cameras/'+id, {method:'DELETE'}).then(()=>location.reload()); }
+    </script>
+</body>
+</html>
+{{end}}

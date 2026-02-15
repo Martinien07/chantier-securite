@@ -1,132 +1,204 @@
--- name: CountActiveAlertes :one
-SELECT COUNT(*) FROM alertes WHERE statut = 'active';
+-- Stats
+-- name: CountActiveAlerts :one
+SELECT COUNT(*) FROM alerts WHERE status = 'new';
 
--- name: CountAlertesToday :one
-SELECT COUNT(*) FROM alertes WHERE date(created_at) = date('now');
+-- name: CountAlertsToday :one
+SELECT COUNT(*) FROM alerts WHERE date(sent_at) = date('now');
 
 -- name: CountActiveCameras :one
-SELECT COUNT(*) FROM cameras WHERE statut = 'active';
+SELECT COUNT(*) FROM cameras;
 
 -- name: CountHighRiskZones :one
-SELECT COUNT(*) FROM zones WHERE niveau_risque IN ('eleve', 'critique');
+SELECT COUNT(*) FROM zones WHERE risk_level = 'HIGH' AND is_active = 1;
 
--- name: ListAlertes :many
-SELECT 
-    a.id,
-    a.camera_id,
-    c.nom as camera_nom,
-    a.zone_id,
-    z.nom as zone_nom,
-    a.type_risque_id,
-    tr.code as type_risque_code,
-    tr.nom as type_risque_nom,
-    tr.couleur as type_risque_couleur,
-    a.severite,
-    a.description,
-    a.details_ia,
-    a.confiance,
-    a.image_url,
-    a.statut,
-    a.acknowledged_at,
-    a.resolved_at,
-    a.notes,
-    a.created_at
-FROM alertes a
-LEFT JOIN cameras c ON a.camera_id = c.id
-LEFT JOIN zones z ON a.zone_id = z.id
-LEFT JOIN types_risque tr ON a.type_risque_id = tr.id
-ORDER BY a.created_at DESC
+-- Sites
+-- name: ListSites :many
+SELECT * FROM sites ORDER BY name;
+
+-- name: GetSite :one
+SELECT * FROM sites WHERE id = ?;
+
+-- name: CreateSite :one
+INSERT INTO sites (name, location, description) VALUES (?, ?, ?) RETURNING *;
+
+-- name: UpdateSite :exec
+UPDATE sites SET name = ?, location = ?, description = ? WHERE id = ?;
+
+-- name: DeleteSite :exec
+DELETE FROM sites WHERE id = ?;
+
+-- Plans
+-- name: ListPlans :many
+SELECT p.*, s.name as site_name FROM plans p LEFT JOIN sites s ON p.site_id = s.id ORDER BY s.name, p.level;
+
+-- name: ListPlansBySite :many
+SELECT * FROM plans WHERE site_id = ? ORDER BY level;
+
+-- name: GetPlan :one
+SELECT * FROM plans WHERE id = ?;
+
+-- name: CreatePlan :one
+INSERT INTO plans (site_id, level, image_path, scale_factor) VALUES (?, ?, ?, ?) RETURNING *;
+
+-- name: UpdatePlan :exec
+UPDATE plans SET site_id = ?, level = ?, image_path = ?, scale_factor = ? WHERE id = ?;
+
+-- name: DeletePlan :exec
+DELETE FROM plans WHERE id = ?;
+
+-- Cameras
+-- name: ListCameras :many
+SELECT c.*, p.level as plan_level, s.name as site_name 
+FROM cameras c 
+LEFT JOIN plans p ON c.plan_id = p.id 
+LEFT JOIN sites s ON p.site_id = s.id 
+ORDER BY s.name, p.level, c.name;
+
+-- name: ListCamerasByPlan :many
+SELECT * FROM cameras WHERE plan_id = ? ORDER BY name;
+
+-- name: GetCamera :one
+SELECT * FROM cameras WHERE id = ?;
+
+-- name: CreateCamera :one
+INSERT INTO cameras (plan_id, name, stream_url, x_plan, y_plan, orientation, fov, is_webcam) 
+VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *;
+
+-- name: UpdateCamera :exec
+UPDATE cameras SET plan_id = ?, name = ?, stream_url = ?, x_plan = ?, y_plan = ?, orientation = ?, fov = ?, is_webcam = ? WHERE id = ?;
+
+-- name: DeleteCamera :exec
+DELETE FROM cameras WHERE id = ?;
+
+-- Zones
+-- name: ListZones :many
+SELECT z.*, p.level as plan_level, s.name as site_name 
+FROM zones z 
+LEFT JOIN plans p ON z.plan_id = p.id 
+LEFT JOIN sites s ON p.site_id = s.id 
+WHERE z.is_active = 1
+ORDER BY s.name, p.level, z.name;
+
+-- name: ListZonesByPlan :many
+SELECT * FROM zones WHERE plan_id = ? AND is_active = 1 ORDER BY name;
+
+-- name: GetZone :one
+SELECT * FROM zones WHERE id = ?;
+
+-- name: CreateZone :one
+INSERT INTO zones (plan_id, name, type, polygon, risk_level, is_active) 
+VALUES (?, ?, ?, ?, ?, 1) RETURNING *;
+
+-- name: UpdateZone :exec
+UPDATE zones SET plan_id = ?, name = ?, type = ?, polygon = ?, risk_level = ?, is_active = ? WHERE id = ?;
+
+-- name: DeleteZone :exec
+UPDATE zones SET is_active = 0 WHERE id = ?;
+
+-- HSE Rules
+-- name: ListHSERules :many
+SELECT * FROM hse_rules ORDER BY severity DESC, name;
+
+-- name: GetHSERule :one
+SELECT * FROM hse_rules WHERE id = ?;
+
+-- name: CreateHSERule :one
+INSERT INTO hse_rules (name, description, condition_logic, severity, is_active) 
+VALUES (?, ?, ?, ?, ?) RETURNING *;
+
+-- name: UpdateHSERule :exec
+UPDATE hse_rules SET name = ?, description = ?, condition_logic = ?, severity = ?, is_active = ? WHERE id = ?;
+
+-- name: DeleteHSERule :exec
+DELETE FROM hse_rules WHERE id = ?;
+
+-- Users
+-- name: ListUsers :many
+SELECT u.*, GROUP_CONCAT(r.name) as roles
+FROM users u 
+LEFT JOIN user_roles ur ON u.id = ur.user_id 
+LEFT JOIN roles r ON ur.role_id = r.id
+GROUP BY u.id
+ORDER BY u.username;
+
+-- name: GetUser :one
+SELECT * FROM users WHERE id = ?;
+
+-- name: GetUserByUsername :one
+SELECT * FROM users WHERE username = ?;
+
+-- name: CreateUser :one
+INSERT INTO users (username, email, password_hash, is_active) VALUES (?, ?, ?, 1) RETURNING *;
+
+-- name: UpdateUser :exec
+UPDATE users SET username = ?, email = ?, is_active = ? WHERE id = ?;
+
+-- name: UpdateUserPassword :exec
+UPDATE users SET password_hash = ? WHERE id = ?;
+
+-- name: DeleteUser :exec
+DELETE FROM users WHERE id = ?;
+
+-- Roles
+-- name: ListRoles :many
+SELECT * FROM roles ORDER BY name;
+
+-- name: AssignRole :exec
+INSERT OR IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?);
+
+-- name: RemoveRole :exec
+DELETE FROM user_roles WHERE user_id = ? AND role_id = ?;
+
+-- Alerts
+-- name: ListAlerts :many
+SELECT a.*, re.risk_score, re.risk_level as event_risk_level, re.explanation,
+       z.name as zone_name, hr.name as rule_name
+FROM alerts a
+LEFT JOIN risk_events re ON a.risk_event_id = re.id
+LEFT JOIN zones z ON re.zone_id = z.id
+LEFT JOIN hse_rules hr ON re.rule_id = hr.id
+ORDER BY a.sent_at DESC
 LIMIT ?;
 
--- name: ListActiveAlertes :many
-SELECT 
-    a.id,
-    a.camera_id,
-    c.nom as camera_nom,
-    a.zone_id,
-    z.nom as zone_nom,
-    a.type_risque_id,
-    tr.code as type_risque_code,
-    tr.nom as type_risque_nom,
-    tr.couleur as type_risque_couleur,
-    a.severite,
-    a.description,
-    a.details_ia,
-    a.confiance,
-    a.image_url,
-    a.statut,
-    a.created_at
-FROM alertes a
-LEFT JOIN cameras c ON a.camera_id = c.id
-LEFT JOIN zones z ON a.zone_id = z.id
-LEFT JOIN types_risque tr ON a.type_risque_id = tr.id
-WHERE a.statut = 'active'
-ORDER BY a.severite DESC, a.created_at DESC;
+-- name: ListActiveAlerts :many
+SELECT a.*, re.risk_score, re.risk_level as event_risk_level, re.explanation,
+       z.name as zone_name, hr.name as rule_name
+FROM alerts a
+LEFT JOIN risk_events re ON a.risk_event_id = re.id
+LEFT JOIN zones z ON re.zone_id = z.id
+LEFT JOIN hse_rules hr ON re.rule_id = hr.id
+WHERE a.status = 'new'
+ORDER BY a.sent_at DESC;
 
--- name: AcknowledgeAlerte :exec
-UPDATE alertes SET statut = 'acknowledged', acknowledged_at = ? WHERE id = ?;
+-- name: AcknowledgeAlert :exec
+UPDATE alerts SET status = 'acknowledged', acknowledged_at = ? WHERE id = ?;
 
--- name: ResolveAlerte :exec
-UPDATE alertes SET statut = 'resolved', resolved_at = ?, notes = ? WHERE id = ?;
+-- name: CloseAlert :exec
+UPDATE alerts SET status = 'closed' WHERE id = ?;
 
--- name: ListCameras :many
-SELECT 
-    c.id,
-    c.nom,
-    c.zone_id,
-    z.nom as zone_nom,
-    z.niveau_risque as zone_niveau_risque,
-    c.emplacement,
-    c.flux_url,
-    c.statut,
-    c.derniere_detection,
-    c.created_at,
-    (SELECT COUNT(*) FROM alertes WHERE camera_id = c.id AND statut = 'active') as alertes_actives
-FROM cameras c
-LEFT JOIN zones z ON c.zone_id = z.id
-ORDER BY c.zone_id, c.nom;
+-- Models
+-- name: ListModels :many
+SELECT * FROM models ORDER BY name, version DESC;
 
--- name: ListZones :many
-SELECT 
-    z.id,
-    z.nom,
-    z.description,
-    z.niveau_risque,
-    z.created_at,
-    (SELECT COUNT(*) FROM cameras WHERE zone_id = z.id AND statut = 'active') as cameras_actives,
-    (SELECT COUNT(*) FROM alertes WHERE zone_id = z.id AND statut = 'active') as alertes_actives
-FROM zones z
-ORDER BY 
-    CASE z.niveau_risque 
-        WHEN 'critique' THEN 1 
-        WHEN 'eleve' THEN 2 
-        WHEN 'moyen' THEN 3 
-        ELSE 4 
-    END;
+-- name: GetModel :one
+SELECT * FROM models WHERE id = ?;
 
--- name: GetTypesRisque :many
-SELECT * FROM types_risque ORDER BY severite DESC;
+-- name: CreateModel :one
+INSERT INTO models (name, type, version, metrics, is_active) VALUES (?, ?, ?, ?, ?) RETURNING *;
 
--- name: GetAlertesParJour :many
-SELECT 
-    date(created_at) as jour,
-    COUNT(*) as total,
-    SUM(CASE WHEN severite >= 8 THEN 1 ELSE 0 END) as critiques,
-    SUM(CASE WHEN severite >= 5 AND severite < 8 THEN 1 ELSE 0 END) as moyennes,
-    SUM(CASE WHEN severite < 5 THEN 1 ELSE 0 END) as faibles
-FROM alertes
-WHERE created_at >= date('now', '-7 days')
-GROUP BY date(created_at)
-ORDER BY jour;
+-- name: UpdateModel :exec
+UPDATE models SET name = ?, type = ?, version = ?, metrics = ?, is_active = ? WHERE id = ?;
 
--- name: GetAlertesParType :many
-SELECT 
-    tr.code,
-    tr.nom,
-    tr.couleur,
-    COUNT(*) as total
-FROM alertes a
-JOIN types_risque tr ON a.type_risque_id = tr.id
-WHERE a.created_at >= date('now', '-30 days')
-GROUP BY tr.id
-ORDER BY total DESC;
+-- name: DeleteModel :exec
+DELETE FROM models WHERE id = ?;
+
+-- Detections (for stats)
+-- name: CountDetectionsToday :one
+SELECT COUNT(*) FROM detections WHERE date(timestamp) = date('now');
+
+-- name: GetRecentDetections :many
+SELECT d.*, c.name as camera_name 
+FROM detections d
+LEFT JOIN cameras c ON d.camera_id = c.id
+ORDER BY d.timestamp DESC
+LIMIT ?;

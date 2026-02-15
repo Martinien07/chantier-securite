@@ -1,18 +1,14 @@
 [Unit]
-Description=Go web server
+Description=SafeSite AI - Construction Site Security Platform
+After=network.target
 
 [Service]
 Type=simple
 User=exedev
-Group=exedev
-WorkingDirectory=/home/exedev
-ExecStart=/home/exedev/srv
+WorkingDirectory=/home/exedev/chantier-securite
+ExecStart=/home/exedev/chantier-securite/safesite -listen :8000
 Restart=always
 RestartSec=5
-Environment=HOME=/home/exedev
-Environment=USER=exedev
-StandardOutput=journal
-StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

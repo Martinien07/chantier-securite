@@ -1,83 +1,224 @@
--- Securite chantier schema
+-- HSE Security Platform Schema
 
--- Zones du chantier
-CREATE TABLE IF NOT EXISTS zones (
+-- Roles
+CREATE TABLE IF NOT EXISTS roles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nom TEXT NOT NULL,
+    name TEXT NOT NULL UNIQUE,
     description TEXT,
-    niveau_risque TEXT NOT NULL DEFAULT 'moyen',
-    coordonnees TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Cameras de surveillance
+-- Users
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL UNIQUE,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    is_active INTEGER DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_login TIMESTAMP
+);
+
+-- User Roles
+CREATE TABLE IF NOT EXISTS user_roles (
+    user_id INTEGER NOT NULL,
+    role_id INTEGER NOT NULL,
+    PRIMARY KEY (user_id, role_id),
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (role_id) REFERENCES roles(id)
+);
+
+-- Sites
+CREATE TABLE IF NOT EXISTS sites (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    location TEXT,
+    description TEXT,
+    confidence_config TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Plans (floor plans)
+CREATE TABLE IF NOT EXISTS plans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER,
+    level TEXT,
+    image_path TEXT,
+    scale_factor REAL CHECK (scale_factor > 0),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (site_id) REFERENCES sites(id)
+);
+
+-- Cameras
 CREATE TABLE IF NOT EXISTS cameras (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nom TEXT NOT NULL,
-    zone_id INTEGER REFERENCES zones(id),
-    emplacement TEXT,
-    flux_url TEXT,
-    statut TEXT NOT NULL DEFAULT 'active',
-    derniere_detection TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    plan_id INTEGER,
+    name TEXT,
+    stream_url TEXT,
+    x_plan REAL,
+    y_plan REAL,
+    orientation REAL,
+    fov REAL,
+    calibration_matrix TEXT,
+    confidence_config TEXT,
+    is_webcam INTEGER DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (plan_id) REFERENCES plans(id)
 );
 
--- Types de risques detectables
-CREATE TABLE IF NOT EXISTS types_risque (
+-- Camera Calibrations
+CREATE TABLE IF NOT EXISTS camera_calibrations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    code TEXT NOT NULL UNIQUE,
-    nom TEXT NOT NULL,
+    camera_id INTEGER NOT NULL,
+    plan_id INTEGER NOT NULL,
+    pts_image TEXT NOT NULL,
+    pts_plan TEXT NOT NULL,
+    homography TEXT NOT NULL,
+    reprojection_error REAL,
+    is_active INTEGER DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(camera_id, plan_id),
+    FOREIGN KEY (camera_id) REFERENCES cameras(id),
+    FOREIGN KEY (plan_id) REFERENCES plans(id)
+);
+
+-- Zones
+CREATE TABLE IF NOT EXISTS zones (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    plan_id INTEGER,
+    name TEXT,
+    type TEXT,
+    polygon TEXT NOT NULL,
+    risk_level TEXT CHECK (risk_level IN ('LOW', 'MEDIUM', 'HIGH')),
+    is_active INTEGER DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (plan_id) REFERENCES plans(id)
+);
+
+-- HSE Rules
+CREATE TABLE IF NOT EXISTS hse_rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
     description TEXT,
-    severite INTEGER NOT NULL DEFAULT 5,
-    couleur TEXT NOT NULL DEFAULT '#ff6b6b',
-    icone TEXT
+    condition_logic TEXT,
+    severity INTEGER CHECK (severity BETWEEN 1 AND 5),
+    is_active INTEGER DEFAULT 1
 );
 
--- Alertes detectees
-CREATE TABLE IF NOT EXISTS alertes (
+-- Models (AI/ML)
+CREATE TABLE IF NOT EXISTS models (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    camera_id INTEGER REFERENCES cameras(id),
-    zone_id INTEGER REFERENCES zones(id),
-    type_risque_id INTEGER REFERENCES types_risque(id),
-    severite INTEGER NOT NULL,
-    description TEXT NOT NULL,
-    details_ia TEXT,
-    confiance REAL NOT NULL,
-    image_url TEXT,
-    video_clip_url TEXT,
-    statut TEXT NOT NULL DEFAULT 'active',
-    acknowledged_at TIMESTAMP,
-    acknowledged_by TEXT,
-    resolved_at TIMESTAMP,
-    resolved_by TEXT,
-    notes TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    name TEXT,
+    type TEXT,
+    version TEXT,
+    trained_at TIMESTAMP,
+    metrics TEXT,
+    is_active INTEGER DEFAULT 1
 );
 
--- Detections brutes
+-- Detections
 CREATE TABLE IF NOT EXISTS detections (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    camera_id INTEGER REFERENCES cameras(id),
-    type_objet TEXT NOT NULL,
-    confiance REAL NOT NULL,
-    bbox TEXT,
-    attributs TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    camera_id INTEGER,
+    timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    object_class TEXT,
+    confidence REAL CHECK (confidence BETWEEN 0 AND 1),
+    bbox_x REAL,
+    bbox_y REAL,
+    bbox_w REAL,
+    bbox_h REAL,
+    track_id INTEGER,
+    FOREIGN KEY (camera_id) REFERENCES cameras(id)
 );
 
--- Statistiques par periode
-CREATE TABLE IF NOT EXISTS stats_periode (
+-- Activity Windows
+CREATE TABLE IF NOT EXISTS activity_windows (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    date DATE NOT NULL,
-    zone_id INTEGER REFERENCES zones(id),
-    nb_alertes INTEGER NOT NULL DEFAULT 0,
-    nb_detections INTEGER NOT NULL DEFAULT 0,
-    nb_personnes_max INTEGER NOT NULL DEFAULT 0,
-    taux_conformite_epi REAL,
-    incidents_evites INTEGER NOT NULL DEFAULT 0,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    camera_id INTEGER,
+    start_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    end_time TIMESTAMP,
+    duration INTEGER,
+    FOREIGN KEY (camera_id) REFERENCES cameras(id)
 );
 
--- Migration record
-INSERT OR IGNORE INTO migrations (migration_number, migration_name)
-VALUES (002, '002-securite');
+-- Activities
+CREATE TABLE IF NOT EXISTS activities (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    window_id INTEGER,
+    label TEXT,
+    confidence REAL,
+    model_id INTEGER,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (window_id) REFERENCES activity_windows(id),
+    FOREIGN KEY (model_id) REFERENCES models(id)
+);
+
+-- Activity Features
+CREATE TABLE IF NOT EXISTS activity_features (
+    window_id INTEGER PRIMARY KEY,
+    features_json TEXT,
+    FOREIGN KEY (window_id) REFERENCES activity_windows(id)
+);
+
+-- Risk Events
+CREATE TABLE IF NOT EXISTS risk_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    window_id INTEGER,
+    zone_id INTEGER,
+    rule_id INTEGER,
+    risk_score REAL,
+    risk_level TEXT,
+    explanation TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (window_id) REFERENCES activity_windows(id),
+    FOREIGN KEY (zone_id) REFERENCES zones(id),
+    FOREIGN KEY (rule_id) REFERENCES hse_rules(id)
+);
+
+-- Alerts
+CREATE TABLE IF NOT EXISTS alerts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    risk_event_id INTEGER,
+    alert_level TEXT,
+    status TEXT DEFAULT 'new',
+    sent_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    acknowledged_at TIMESTAMP,
+    FOREIGN KEY (risk_event_id) REFERENCES risk_events(id)
+);
+
+-- Human Decisions
+CREATE TABLE IF NOT EXISTS human_decisions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    alert_id INTEGER,
+    user_id INTEGER,
+    action TEXT,
+    comment TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (alert_id) REFERENCES alerts(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Incident Reviews
+CREATE TABLE IF NOT EXISTS incident_reviews (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    alert_id INTEGER,
+    reviewer_id INTEGER,
+    comment TEXT,
+    decision_summary TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (alert_id) REFERENCES alerts(id),
+    FOREIGN KEY (reviewer_id) REFERENCES users(id)
+);
+
+-- Person Zone Events
+CREATE TABLE IF NOT EXISTS person_zone_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    person_track_id INTEGER,
+    zone_id INTEGER,
+    entry_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    exit_time TIMESTAMP,
+    exposure_duration INTEGER,
+    FOREIGN KEY (zone_id) REFERENCES zones(id)
+);
+
+INSERT OR IGNORE INTO migrations (migration_number, migration_name) VALUES (002, '002-securite');

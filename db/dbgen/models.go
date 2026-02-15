@@ -8,45 +8,102 @@ import (
 	"time"
 )
 
-type Alerte struct {
+type Activity struct {
+	ID         int64     `json:"id"`
+	WindowID   *int64    `json:"window_id"`
+	Label      *string   `json:"label"`
+	Confidence *float64  `json:"confidence"`
+	ModelID    *int64    `json:"model_id"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+type ActivityFeature struct {
+	WindowID     int64   `json:"window_id"`
+	FeaturesJson *string `json:"features_json"`
+}
+
+type ActivityWindow struct {
+	ID        int64      `json:"id"`
+	CameraID  *int64     `json:"camera_id"`
+	StartTime time.Time  `json:"start_time"`
+	EndTime   *time.Time `json:"end_time"`
+	Duration  *int64     `json:"duration"`
+}
+
+type Alert struct {
 	ID             int64      `json:"id"`
-	CameraID       *int64     `json:"camera_id"`
-	ZoneID         *int64     `json:"zone_id"`
-	TypeRisqueID   *int64     `json:"type_risque_id"`
-	Severite       int64      `json:"severite"`
-	Description    string     `json:"description"`
-	DetailsIa      *string    `json:"details_ia"`
-	Confiance      float64    `json:"confiance"`
-	ImageUrl       *string    `json:"image_url"`
-	VideoClipUrl   *string    `json:"video_clip_url"`
-	Statut         string     `json:"statut"`
+	RiskEventID    *int64     `json:"risk_event_id"`
+	AlertLevel     *string    `json:"alert_level"`
+	Status         *string    `json:"status"`
+	SentAt         time.Time  `json:"sent_at"`
 	AcknowledgedAt *time.Time `json:"acknowledged_at"`
-	AcknowledgedBy *string    `json:"acknowledged_by"`
-	ResolvedAt     *time.Time `json:"resolved_at"`
-	ResolvedBy     *string    `json:"resolved_by"`
-	Notes          *string    `json:"notes"`
-	CreatedAt      time.Time  `json:"created_at"`
 }
 
 type Camera struct {
-	ID                int64      `json:"id"`
-	Nom               string     `json:"nom"`
-	ZoneID            *int64     `json:"zone_id"`
-	Emplacement       *string    `json:"emplacement"`
-	FluxUrl           *string    `json:"flux_url"`
-	Statut            string     `json:"statut"`
-	DerniereDetection *time.Time `json:"derniere_detection"`
-	CreatedAt         time.Time  `json:"created_at"`
+	ID                int64     `json:"id"`
+	PlanID            *int64    `json:"plan_id"`
+	Name              *string   `json:"name"`
+	StreamUrl         *string   `json:"stream_url"`
+	XPlan             *float64  `json:"x_plan"`
+	YPlan             *float64  `json:"y_plan"`
+	Orientation       *float64  `json:"orientation"`
+	Fov               *float64  `json:"fov"`
+	CalibrationMatrix *string   `json:"calibration_matrix"`
+	ConfidenceConfig  *string   `json:"confidence_config"`
+	IsWebcam          *int64    `json:"is_webcam"`
+	CreatedAt         time.Time `json:"created_at"`
+}
+
+type CameraCalibration struct {
+	ID                int64     `json:"id"`
+	CameraID          int64     `json:"camera_id"`
+	PlanID            int64     `json:"plan_id"`
+	PtsImage          string    `json:"pts_image"`
+	PtsPlan           string    `json:"pts_plan"`
+	Homography        string    `json:"homography"`
+	ReprojectionError *float64  `json:"reprojection_error"`
+	IsActive          *int64    `json:"is_active"`
+	CreatedAt         time.Time `json:"created_at"`
 }
 
 type Detection struct {
+	ID          int64     `json:"id"`
+	CameraID    *int64    `json:"camera_id"`
+	Timestamp   time.Time `json:"timestamp"`
+	ObjectClass *string   `json:"object_class"`
+	Confidence  *float64  `json:"confidence"`
+	BboxX       *float64  `json:"bbox_x"`
+	BboxY       *float64  `json:"bbox_y"`
+	BboxW       *float64  `json:"bbox_w"`
+	BboxH       *float64  `json:"bbox_h"`
+	TrackID     *int64    `json:"track_id"`
+}
+
+type HseRule struct {
+	ID             int64   `json:"id"`
+	Name           *string `json:"name"`
+	Description    *string `json:"description"`
+	ConditionLogic *string `json:"condition_logic"`
+	Severity       *int64  `json:"severity"`
+	IsActive       *int64  `json:"is_active"`
+}
+
+type HumanDecision struct {
 	ID        int64     `json:"id"`
-	CameraID  *int64    `json:"camera_id"`
-	TypeObjet string    `json:"type_objet"`
-	Confiance float64   `json:"confiance"`
-	Bbox      *string   `json:"bbox"`
-	Attributs *string   `json:"attributs"`
+	AlertID   *int64    `json:"alert_id"`
+	UserID    *int64    `json:"user_id"`
+	Action    *string   `json:"action"`
+	Comment   *string   `json:"comment"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+type IncidentReview struct {
+	ID              int64     `json:"id"`
+	AlertID         *int64    `json:"alert_id"`
+	ReviewerID      *int64    `json:"reviewer_id"`
+	Comment         *string   `json:"comment"`
+	DecisionSummary *string   `json:"decision_summary"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 type Migration struct {
@@ -55,40 +112,83 @@ type Migration struct {
 	ExecutedAt      time.Time `json:"executed_at"`
 }
 
-type StatsPeriode struct {
-	ID                int64     `json:"id"`
-	Date              time.Time `json:"date"`
-	ZoneID            *int64    `json:"zone_id"`
-	NbAlertes         int64     `json:"nb_alertes"`
-	NbDetections      int64     `json:"nb_detections"`
-	NbPersonnesMax    int64     `json:"nb_personnes_max"`
-	TauxConformiteEpi *float64  `json:"taux_conformite_epi"`
-	IncidentsEvites   int64     `json:"incidents_evites"`
-	CreatedAt         time.Time `json:"created_at"`
+type Model struct {
+	ID        int64      `json:"id"`
+	Name      *string    `json:"name"`
+	Type      *string    `json:"type"`
+	Version   *string    `json:"version"`
+	TrainedAt *time.Time `json:"trained_at"`
+	Metrics   *string    `json:"metrics"`
+	IsActive  *int64     `json:"is_active"`
 }
 
-type TypesRisque struct {
-	ID          int64   `json:"id"`
-	Code        string  `json:"code"`
-	Nom         string  `json:"nom"`
-	Description *string `json:"description"`
-	Severite    int64   `json:"severite"`
-	Couleur     string  `json:"couleur"`
-	Icone       *string `json:"icone"`
+type PersonZoneEvent struct {
+	ID               int64      `json:"id"`
+	PersonTrackID    *int64     `json:"person_track_id"`
+	ZoneID           *int64     `json:"zone_id"`
+	EntryTime        time.Time  `json:"entry_time"`
+	ExitTime         *time.Time `json:"exit_time"`
+	ExposureDuration *int64     `json:"exposure_duration"`
 }
 
-type Visitor struct {
-	ID        string    `json:"id"`
-	ViewCount int64     `json:"view_count"`
-	CreatedAt time.Time `json:"created_at"`
-	LastSeen  time.Time `json:"last_seen"`
+type Plan struct {
+	ID          int64     `json:"id"`
+	SiteID      *int64    `json:"site_id"`
+	Level       *string   `json:"level"`
+	ImagePath   *string   `json:"image_path"`
+	ScaleFactor *float64  `json:"scale_factor"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+type RiskEvent struct {
+	ID          int64     `json:"id"`
+	WindowID    *int64    `json:"window_id"`
+	ZoneID      *int64    `json:"zone_id"`
+	RuleID      *int64    `json:"rule_id"`
+	RiskScore   *float64  `json:"risk_score"`
+	RiskLevel   *string   `json:"risk_level"`
+	Explanation *string   `json:"explanation"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+type Role struct {
+	ID          int64     `json:"id"`
+	Name        string    `json:"name"`
+	Description *string   `json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+type Site struct {
+	ID               int64     `json:"id"`
+	Name             string    `json:"name"`
+	Location         *string   `json:"location"`
+	Description      *string   `json:"description"`
+	ConfidenceConfig *string   `json:"confidence_config"`
+	CreatedAt        time.Time `json:"created_at"`
+}
+
+type User struct {
+	ID           int64      `json:"id"`
+	Username     string     `json:"username"`
+	Email        string     `json:"email"`
+	PasswordHash string     `json:"password_hash"`
+	IsActive     *int64     `json:"is_active"`
+	CreatedAt    time.Time  `json:"created_at"`
+	LastLogin    *time.Time `json:"last_login"`
+}
+
+type UserRole struct {
+	UserID int64 `json:"user_id"`
+	RoleID int64 `json:"role_id"`
 }
 
 type Zone struct {
-	ID           int64     `json:"id"`
-	Nom          string    `json:"nom"`
-	Description  *string   `json:"description"`
-	NiveauRisque string    `json:"niveau_risque"`
-	Coordonnees  *string   `json:"coordonnees"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID        int64     `json:"id"`
+	PlanID    *int64    `json:"plan_id"`
+	Name      *string   `json:"name"`
+	Type      *string   `json:"type"`
+	Polygon   string    `json:"polygon"`
+	RiskLevel *string   `json:"risk_level"`
+	IsActive  *int64    `json:"is_active"`
+	CreatedAt time.Time `json:"created_at"`
 }

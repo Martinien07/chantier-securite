@@ -1,53 +1,73 @@
--- Seed data for SafeSite AI demo
+-- Seed data
 
--- Types de risques
-INSERT OR IGNORE INTO types_risque (id, code, nom, description, severite, couleur, icone) VALUES
-    (1, 'EPI_CASQUE', 'Absence de casque', 'Personne detectee sans casque de securite', 7, '#e74c3c', 'hard-hat'),
-    (2, 'EPI_GILET', 'Absence de gilet', 'Personne detectee sans gilet haute visibilite', 5, '#f39c12', 'vest'),
-    (3, 'ZONE_INTERDITE', 'Intrusion zone interdite', 'Presence non autorisee dans une zone dangereuse', 9, '#9b59b6', 'ban'),
-    (4, 'PROXIMITE_ENGIN', 'Proximite engin dangereux', 'Personne trop proche d''un engin en mouvement', 10, '#e74c3c', 'truck'),
-    (5, 'CHUTE_HAUTEUR', 'Risque de chute de hauteur', 'Personne sans harnais pres d''un bord', 10, '#c0392b', 'arrow-down'),
-    (6, 'COACTIVITE', 'Coactivite dangereuse', 'Activites incompatibles simultanees detectees', 8, '#e67e22', 'users'),
-    (7, 'ENCOMBREMENT', 'Voie obstruee', 'Passage ou issue de secours obstrue', 6, '#3498db', 'road-barrier'),
-    (8, 'CHUTE_OBJET', 'Risque chute objet', 'Materiel mal arrime en hauteur', 8, '#8e44ad', 'box');
+-- Roles
+INSERT OR IGNORE INTO roles (id, name, description) VALUES
+    (1, 'admin', 'Administration système'),
+    (2, 'hse', 'Responsable sécurité'),
+    (3, 'supervisor', 'Superviseur chantier'),
+    (4, 'viewer', 'Consultation seule'),
+    (5, 'auditor', 'Audit sécurité');
+
+-- Users
+INSERT OR IGNORE INTO users (id, username, email, password_hash, is_active) VALUES
+    (1, 'admin', 'admin@safesite.com', '$2a$10$dummy', 1),
+    (2, 'hse_manager', 'hse@safesite.com', '$2a$10$dummy', 1),
+    (3, 'supervisor1', 'sup@safesite.com', '$2a$10$dummy', 1);
+
+INSERT OR IGNORE INTO user_roles (user_id, role_id) VALUES (1, 1), (2, 2), (3, 3);
+
+-- Sites
+INSERT OR IGNORE INTO sites (id, name, location, description) VALUES
+    (1, 'Tour Horizon', 'Paris La Défense', 'Construction immeuble R+25'),
+    (2, 'Centre Commercial', 'Lyon Part-Dieu', 'Rénovation centre commercial'),
+    (3, 'Pont Urbain', 'Bordeaux', 'Construction pont piéton');
+
+-- Plans
+INSERT OR IGNORE INTO plans (id, site_id, level, image_path, scale_factor) VALUES
+    (1, 1, 'RDC', '/static/plans/horizon_rdc.svg', 0.05),
+    (2, 1, 'R+1', '/static/plans/horizon_r1.svg', 0.05),
+    (3, 1, 'R+2', '/static/plans/horizon_r2.svg', 0.05),
+    (4, 2, 'RDC', '/static/plans/centre_rdc.svg', 0.06);
+
+-- Cameras (including a webcam entry for testing)
+INSERT OR IGNORE INTO cameras (id, plan_id, name, stream_url, x_plan, y_plan, orientation, fov, is_webcam) VALUES
+    (1, 1, 'CAM-A1', 'rtsp://192.168.1.10/stream1', 150, 200, 45, 90, 0),
+    (2, 1, 'CAM-A2', 'rtsp://192.168.1.11/stream1', 400, 150, 180, 120, 0),
+    (3, 1, 'CAM-B1', 'rtsp://192.168.1.12/stream1', 600, 300, 270, 90, 0),
+    (4, 2, 'CAM-C1', 'rtsp://192.168.1.13/stream1', 200, 250, 0, 100, 0),
+    (5, 1, 'Webcam Test', 'webcam://local', 300, 350, 90, 60, 1);
 
 -- Zones
-INSERT OR IGNORE INTO zones (id, nom, description, niveau_risque) VALUES
-    (1, 'Zone A - Gros oeuvre', 'Travaux de structure beton', 'eleve'),
-    (2, 'Zone B - Echafaudages', 'Travaux en hauteur facade nord', 'critique'),
-    (3, 'Zone C - Stockage', 'Zone de stockage materiaux', 'moyen'),
-    (4, 'Zone D - Circulation engins', 'Voie de circulation poids lourds', 'eleve'),
-    (5, 'Zone E - Base vie', 'Vestiaires et refectoire', 'faible');
+INSERT OR IGNORE INTO zones (id, plan_id, name, type, polygon, risk_level, is_active) VALUES
+    (1, 1, 'Zone Gros Oeuvre', 'construction', '[[100,100],[400,100],[400,300],[100,300]]', 'HIGH', 1),
+    (2, 1, 'Zone Échafaudage', 'height', '[[450,50],[650,50],[650,250],[450,250]]', 'HIGH', 1),
+    (3, 1, 'Zone Stockage', 'storage', '[[50,350],[250,350],[250,500],[50,500]]', 'LOW', 1),
+    (4, 1, 'Circulation Engins', 'traffic', '[[300,320],[700,320],[700,380],[300,380]]', 'MEDIUM', 1),
+    (5, 1, 'Base Vie', 'safe', '[[720,400],[900,400],[900,550],[720,550]]', 'LOW', 1);
 
--- Cameras
-INSERT OR IGNORE INTO cameras (id, nom, zone_id, emplacement, statut) VALUES
-    (1, 'CAM-A1', 1, 'Entree zone gros oeuvre', 'active'),
-    (2, 'CAM-A2', 1, 'Banches coffrage', 'active'),
-    (3, 'CAM-B1', 2, 'Pied echafaudage nord', 'active'),
-    (4, 'CAM-B2', 2, 'Plateforme niveau 3', 'active'),
-    (5, 'CAM-C1', 3, 'Aire stockage principale', 'active'),
-    (6, 'CAM-D1', 4, 'Entree chantier', 'active'),
-    (7, 'CAM-D2', 4, 'Croisement voies', 'maintenance'),
-    (8, 'CAM-E1', 5, 'Parking base vie', 'active');
+-- HSE Rules
+INSERT OR IGNORE INTO hse_rules (id, name, description, condition_logic, severity, is_active) VALUES
+    (1, 'Absence de casque', 'Personne détectée sans casque de sécurité', 'no_hardhat AND person', 4, 1),
+    (2, 'Absence de gilet', 'Personne sans gilet haute visibilité', 'no_vest AND person', 3, 1),
+    (3, 'Travail en hauteur sans harnais', 'Risque de chute de hauteur', 'height_zone AND no_harness', 5, 1),
+    (4, 'Proximité engin', 'Personne trop proche d''un engin en mouvement', 'machine_distance < 3', 5, 1),
+    (5, 'Zone interdite', 'Intrusion dans zone dangereuse', 'forbidden_zone AND person', 4, 1);
 
--- Alertes de demonstration (avec timestamps dynamiques)
-INSERT OR IGNORE INTO alertes (id, camera_id, zone_id, type_risque_id, severite, description, details_ia, confiance, statut, created_at) VALUES
-    (1, 1, 1, 1, 7, 'Absence de casque detectee - 2 personnes', 
-     '{"objets_detectes":["personne","personne"],"epi_manquants":["casque","casque"],"contexte":"Zone de travaux actifs avec risque de chute objets","recommandation":"Intervention immediate requise pour rappel des regles EPI"}', 
-     0.94, 'active', datetime('now', '-15 minutes')),
-    (2, 4, 2, 5, 10, 'Risque chute de hauteur - Travailleur sans harnais', 
-     '{"objets_detectes":["personne","echafaudage","garde-corps"],"analyse":"Personne detectee a moins de 1m du bord sans ligne de vie visible","facteurs_risque":["hauteur > 3m","absence harnais","vent modere"],"recommandation":"Arret immediat des travaux et securisation"}', 
-     0.89, 'active', datetime('now', '-8 minutes')),
-    (3, 6, 4, 4, 10, 'Proximite dangereuse engin/pieton', 
-     '{"objets_detectes":["chargeuse","personne"],"distance_estimee":"2.3m","vitesse_engin":"lent","angle_mort":true,"recommandation":"Alerte conducteur et pieton immediate"}', 
-     0.97, 'active', datetime('now', '-3 minutes')),
-    (4, 3, 2, 1, 7, 'Absence de casque en zone echafaudage', 
-     '{"objets_detectes":["personne"],"epi_manquants":["casque"],"contexte":"Pied echafaudage - risque chute objets","recommandation":"Port du casque obligatoire dans cette zone"}', 
-     0.91, 'acknowledged', datetime('now', '-45 minutes')),
-    (5, 2, 1, 6, 8, 'Coactivite dangereuse detectee', 
-     '{"activites":["coulage beton","passage pieton"],"risques":["projection","glissade"],"recommandation":"Etablir perimetre de securite"}', 
-     0.85, 'resolved', datetime('now', '-2 hours'));
+-- Models
+INSERT OR IGNORE INTO models (id, name, type, version, metrics, is_active) VALUES
+    (1, 'YOLOv8-PPE', 'detection', 'v8n', '{"mAP": 0.89, "precision": 0.91}', 1),
+    (2, 'YOLOv8-Person', 'detection', 'v8m', '{"mAP": 0.94, "precision": 0.96}', 1),
+    (3, 'Activity-Classifier', 'classification', 'v1', '{"accuracy": 0.87}', 1);
 
--- Migration record
-INSERT OR IGNORE INTO migrations (migration_number, migration_name)
-VALUES (003, '003-seed');
+-- Sample Risk Events and Alerts
+INSERT OR IGNORE INTO risk_events (id, zone_id, rule_id, risk_score, risk_level, explanation, created_at) VALUES
+    (1, 1, 1, 0.85, 'HIGH', 'Personne détectée sans casque dans zone gros oeuvre', datetime('now', '-10 minutes')),
+    (2, 2, 3, 0.95, 'HIGH', 'Travailleur en hauteur sans équipement de protection', datetime('now', '-5 minutes')),
+    (3, 4, 4, 0.78, 'HIGH', 'Proximité dangereuse entre piéton et chariot élévateur', datetime('now', '-2 minutes'));
+
+INSERT OR IGNORE INTO alerts (id, risk_event_id, alert_level, status, sent_at) VALUES
+    (1, 1, 'HIGH', 'new', datetime('now', '-10 minutes')),
+    (2, 2, 'HIGH', 'acknowledged', datetime('now', '-5 minutes')),
+    (3, 3, 'HIGH', 'new', datetime('now', '-2 minutes'));
+
+INSERT OR IGNORE INTO migrations (migration_number, migration_name) VALUES (003, '003-seed');
