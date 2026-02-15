@@ -4,176 +4,340 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SafeSite AI - {{.Site.Name}}</title>
+    <title>SafeSite AI - Tableau de bord</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <link href="/static/style.css" rel="stylesheet">
 </head>
 <body>
-    <div class="d-flex">
+    <div class="app-container">
         {{template "sidebar" .}}
         <main class="main-content">
             <h1 class="page-title"><i class="bi bi-speedometer2"></i> Tableau de bord</h1>
             
-            <!-- Stats -->
-            <div class="row g-4 mb-4">
+            <!-- Stats Cards -->
+            <div class="row g-3 mb-4">
                 <div class="col-md-3">
-                    <div class="stat-card danger"><div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div><div class="stat-value">{{.ActiveAlerts}}</div><div class="stat-label">Alertes actives</div></div>
+                    <div class="stat-card stat-danger">
+                        <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
+                        <div class="stat-value">{{.ActiveAlerts}}</div>
+                        <div class="stat-label">Alertes actives</div>
+                    </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card primary"><div class="stat-icon"><i class="bi bi-camera-video"></i></div><div class="stat-value">{{.TotalCameras}}</div><div class="stat-label">Caméras</div></div>
+                    <div class="stat-card stat-primary">
+                        <div class="stat-icon"><i class="bi bi-camera-video"></i></div>
+                        <div class="stat-value">{{.TotalCameras}}</div>
+                        <div class="stat-label">Caméras</div>
+                    </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card warning"><div class="stat-icon"><i class="bi bi-geo-alt"></i></div><div class="stat-value">{{.HighRiskZones}}</div><div class="stat-label">Zones haut risque</div></div>
+                    <div class="stat-card stat-warning">
+                        <div class="stat-icon"><i class="bi bi-geo-alt"></i></div>
+                        <div class="stat-value">{{.HighRiskZones}}</div>
+                        <div class="stat-label">Zones à risque élevé</div>
+                    </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card success"><div class="stat-icon"><i class="bi bi-eye"></i></div><div class="stat-value">{{.DetectionsToday}}</div><div class="stat-label">Détections</div></div>
+                    <div class="stat-card stat-success">
+                        <div class="stat-icon"><i class="bi bi-search"></i></div>
+                        <div class="stat-value">{{.DetectionsToday}}</div>
+                        <div class="stat-label">Détections aujourd'hui</div>
+                    </div>
                 </div>
             </div>
-            
+
             <div class="row g-4">
                 <!-- Plan interactif -->
                 <div class="col-lg-8">
-                    <div class="card">
+                    <div class="card h-100">
                         <div class="card-header d-flex justify-content-between align-items-center">
-                            <span><i class="bi bi-map me-2"></i>Plan du site</span>
-                            <div class="d-flex gap-2 align-items-center">
-                                <select class="form-select form-select-sm" id="levelSelect" style="width:auto" onchange="loadPlan(this.value)">
-                                    <option value="">Choisir un niveau...</option>
+                            <div>
+                                <i class="bi bi-map"></i> Plan du chantier
+                                <small class="text-muted ms-2">(Ctrl+molette pour zoomer, clic+glisser pour déplacer)</small>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <select id="level-select" class="form-select form-select-sm" style="width:auto;" onchange="loadPlan(this.value)">
                                     {{range .Plans}}
-                                    <option value="{{.ID}}">{{.Level}}</option>
+                                    <option value="{{.ID}}">{{if .Level}}{{.Level}}{{else}}Plan {{.ID}}{{end}}</option>
                                     {{end}}
                                 </select>
                                 <div class="btn-group btn-group-sm">
-                                    <button class="btn btn-outline-secondary" onclick="zoomIn()" title="Zoom +"><i class="bi bi-zoom-in"></i></button>
-                                    <button class="btn btn-outline-secondary" onclick="zoomOut()" title="Zoom -"><i class="bi bi-zoom-out"></i></button>
-                                    <button class="btn btn-outline-secondary" onclick="rotateLeft()" title="Rotation gauche"><i class="bi bi-arrow-counterclockwise"></i></button>
-                                    <button class="btn btn-outline-secondary" onclick="rotateRight()" title="Rotation droite"><i class="bi bi-arrow-clockwise"></i></button>
-                                    <button class="btn btn-outline-secondary" onclick="resetView()" title="Reset"><i class="bi bi-arrows-fullscreen"></i></button>
+                                    <button class="btn btn-outline-primary" onclick="planViewer.zoomIn()" title="Zoom +"><i class="bi bi-zoom-in"></i></button>
+                                    <button class="btn btn-outline-primary" onclick="planViewer.zoomOut()" title="Zoom -"><i class="bi bi-zoom-out"></i></button>
+                                    <button class="btn btn-outline-primary" onclick="planViewer.reset()" title="Réinitialiser"><i class="bi bi-arrows-angle-contract"></i></button>
                                 </div>
                             </div>
                         </div>
-                        <div class="plan-container" id="planContainer">
-                            <div class="plan-wrapper" id="planWrapper">
-                                <img id="planImage" src="" alt="Plan" style="display:none">
-                                <svg id="planOverlay" class="plan-overlay"></svg>
-                            </div>
-                            <div class="plan-placeholder" id="planPlaceholder">
-                                <i class="bi bi-map"></i>
-                                <p>Sélectionnez un niveau pour afficher le plan</p>
-                            </div>
-                        </div>
-                        <div class="card-footer">
-                            <div class="d-flex gap-3 small">
-                                <span><span class="legend-dot camera"></span> Caméra</span>
-                                <span><span class="legend-dot zone-high"></span> Zone critique</span>
-                                <span><span class="legend-dot zone-medium"></span> Zone moyenne</span>
-                                <span><span class="legend-dot zone-low"></span> Zone faible</span>
+                        <div class="card-body p-0">
+                            <div id="plan-container" class="plan-viewer-container">
+                                <div id="plan-viewport" class="plan-viewport">
+                                    <div id="plan-content" class="plan-content">
+                                        <img id="plan-image" src="" alt="Plan" style="display:none;">
+                                        <div id="plan-placeholder" class="plan-placeholder">
+                                            <i class="bi bi-image"></i>
+                                            <p>Aucune image de plan</p>
+                                            <small>Ajoutez une image via Administration > Plans</small>
+                                        </div>
+                                        <svg id="plan-overlay" class="plan-overlay"></svg>
+                                    </div>
+                                </div>
+                                <div class="plan-zoom-indicator" id="zoom-indicator">100%</div>
                             </div>
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Alertes récentes -->
                 <div class="col-lg-4">
-                    <div class="card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <span><i class="bi bi-exclamation-triangle me-2"></i>Alertes</span>
-                            <a href="/alertes" class="btn btn-sm btn-outline-primary">Voir tout</a>
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <i class="bi bi-bell"></i> Alertes récentes
                         </div>
-                        <div class="alert-list">
-                            {{range .Alerts}}
-                            <div class="alert-item {{.Level}}">
-                                <div class="alert-badge">{{.Level}}</div>
-                                <div class="alert-info">
-                                    <div class="alert-zone">{{.ZoneName}}</div>
-                                    <div class="alert-desc">{{.Explanation}}</div>
-                                    <div class="alert-time"><i class="bi bi-clock"></i> {{.SentAt}}</div>
+                        <div class="card-body p-0">
+                            <div class="list-group list-group-flush">
+                                {{range .Alerts}}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <span class="badge {{if eq .Level "HIGH"}}bg-danger{{else if eq .Level "MEDIUM"}}bg-warning{{else}}bg-info{{end}} me-2">{{.Level}}</span>
+                                        <span>{{if .Explanation}}{{.Explanation}}{{else}}Alerte #{{.ID}}{{end}}</span>
+                                    </div>
+                                    <small class="text-muted">{{if .SentAt}}{{.SentAt}}{{end}}</small>
                                 </div>
+                                {{else}}
+                                <div class="list-group-item text-muted text-center">Aucune alerte récente</div>
+                                {{end}}
                             </div>
-                            {{else}}
-                            <div class="text-center text-muted py-4">Aucune alerte</div>
-                            {{end}}
+                        </div>
+                        <div class="card-footer text-center">
+                            <a href="/alertes" class="btn btn-sm btn-outline-primary">Voir toutes les alertes</a>
                         </div>
                     </div>
                 </div>
             </div>
         </main>
     </div>
-    
-    <!-- Modal caméra -->
+
+    <!-- Modal Caméra -->
     <div class="modal fade" id="cameraModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-camera-video me-2"></i><span id="cameraModalTitle">Caméra</span></h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <h5 class="modal-title"><i class="bi bi-camera-video"></i> <span id="camera-modal-title">Caméra</span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="stopCameraStream()"></button>
                 </div>
-                <div class="modal-body p-0">
-                    <div class="camera-feed" id="cameraFeed">
-                        <video id="cameraVideo" autoplay muted playsinline></video>
-                        <div class="camera-offline" id="cameraOffline"><i class="bi bi-camera-video-off"></i><p>Flux non disponible</p></div>
+                <div class="modal-body text-center p-0">
+                    <div id="camera-stream-container" style="position:relative; background:#000; min-height:400px;">
+                        <video id="camera-video" autoplay playsinline style="width:100%; display:none;"></video>
+                        <img id="camera-rtsp-img" style="width:100%; display:none;" alt="Stream">
+                        <div id="camera-loading" class="d-flex align-items-center justify-content-center" style="min-height:400px;">
+                            <div class="spinner-border text-light" role="status"></div>
+                        </div>
+                        <div id="camera-error" class="d-none text-white p-4">
+                            <i class="bi bi-exclamation-circle" style="font-size:3rem;"></i>
+                            <p class="mt-2">Impossible d'accéder à la caméra</p>
+                            <button class="btn btn-primary" onclick="retryCameraStream()">Réessayer</button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-    let currentPlan = null;
-    let currentZoom = 1;
-    let currentRotation = 0;
-    let cameras = [];
-    let zones = [];
-    
-    function loadPlan(planId) {
-        if (!planId) {
-            document.getElementById('planPlaceholder').style.display = 'flex';
-            document.getElementById('planImage').style.display = 'none';
-            document.getElementById('planOverlay').innerHTML = '';
-            return;
-        }
+    // Plan Viewer with Pan & Zoom
+    const planViewer = {
+        scale: 1,
+        minScale: 0.5,
+        maxScale: 4,
+        panX: 0,
+        panY: 0,
+        isPanning: false,
+        startX: 0,
+        startY: 0,
         
-        fetch('/api/plans/' + planId + '/data')
-            .then(r => r.json())
-            .then(data => {
-                currentPlan = data.plan;
-                cameras = data.cameras || [];
-                zones = data.zones || [];
-                
-                if (data.plan.image_path) {
-                    document.getElementById('planImage').src = data.plan.image_path;
-                    document.getElementById('planImage').style.display = 'block';
-                    document.getElementById('planPlaceholder').style.display = 'none';
-                    resetView();
-                    drawOverlay();
-                } else {
-                    document.getElementById('planPlaceholder').innerHTML = '<i class="bi bi-image"></i><p>Aucune image pour ce niveau</p>';
-                    document.getElementById('planPlaceholder').style.display = 'flex';
-                    document.getElementById('planImage').style.display = 'none';
+        init() {
+            const container = document.getElementById('plan-container');
+            const content = document.getElementById('plan-content');
+            
+            // Mouse wheel zoom (Ctrl + wheel)
+            container.addEventListener('wheel', (e) => {
+                if (e.ctrlKey) {
+                    e.preventDefault();
+                    const rect = container.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+                    this.zoomAt(x, y, delta);
+                }
+            }, { passive: false });
+            
+            // Pan with mouse drag
+            container.addEventListener('mousedown', (e) => {
+                if (e.button === 0) { // Left click
+                    this.isPanning = true;
+                    this.startX = e.clientX - this.panX;
+                    this.startY = e.clientY - this.panY;
+                    container.style.cursor = 'grabbing';
                 }
             });
+            
+            document.addEventListener('mousemove', (e) => {
+                if (this.isPanning) {
+                    this.panX = e.clientX - this.startX;
+                    this.panY = e.clientY - this.startY;
+                    this.applyTransform();
+                }
+            });
+            
+            document.addEventListener('mouseup', () => {
+                this.isPanning = false;
+                container.style.cursor = 'grab';
+            });
+            
+            // Touch support
+            let lastTouchDist = 0;
+            container.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    lastTouchDist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                } else if (e.touches.length === 1) {
+                    this.isPanning = true;
+                    this.startX = e.touches[0].clientX - this.panX;
+                    this.startY = e.touches[0].clientY - this.panY;
+                }
+            });
+            
+            container.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                if (e.touches.length === 2) {
+                    const dist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    const delta = (dist - lastTouchDist) * 0.01;
+                    this.zoom(delta);
+                    lastTouchDist = dist;
+                } else if (e.touches.length === 1 && this.isPanning) {
+                    this.panX = e.touches[0].clientX - this.startX;
+                    this.panY = e.touches[0].clientY - this.startY;
+                    this.applyTransform();
+                }
+            }, { passive: false });
+            
+            container.addEventListener('touchend', () => {
+                this.isPanning = false;
+            });
+        },
+        
+        zoomAt(x, y, delta) {
+            const oldScale = this.scale;
+            this.scale = Math.max(this.minScale, Math.min(this.maxScale, this.scale + delta));
+            
+            // Adjust pan to zoom toward mouse position
+            const scaleChange = this.scale / oldScale;
+            this.panX = x - (x - this.panX) * scaleChange;
+            this.panY = y - (y - this.panY) * scaleChange;
+            
+            this.applyTransform();
+        },
+        
+        zoom(delta) {
+            this.scale = Math.max(this.minScale, Math.min(this.maxScale, this.scale + delta));
+            this.applyTransform();
+        },
+        
+        zoomIn() {
+            this.zoom(0.2);
+        },
+        
+        zoomOut() {
+            this.zoom(-0.2);
+        },
+        
+        reset() {
+            this.scale = 1;
+            this.panX = 0;
+            this.panY = 0;
+            this.applyTransform();
+        },
+        
+        applyTransform() {
+            const content = document.getElementById('plan-content');
+            content.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.scale})`;
+            document.getElementById('zoom-indicator').textContent = Math.round(this.scale * 100) + '%';
+        }
+    };
+    
+    // Initialize on load
+    document.addEventListener('DOMContentLoaded', () => {
+        planViewer.init();
+        
+        // Load first plan
+        const select = document.getElementById('level-select');
+        if (select && select.options.length > 0) {
+            loadPlan(select.value);
+        }
+    });
+    
+    // Current camera data
+    let currentCameraId = null;
+    let currentCameraStream = null;
+    
+    function loadPlan(planId) {
+        if (!planId) return;
+        
+        fetch(`/api/plan/${planId}/data`)
+            .then(r => r.json())
+            .then(data => {
+                const img = document.getElementById('plan-image');
+                const placeholder = document.getElementById('plan-placeholder');
+                const overlay = document.getElementById('plan-overlay');
+                
+                if (data.plan && data.plan.image_path) {
+                    img.src = data.plan.image_path;
+                    img.style.display = 'block';
+                    placeholder.style.display = 'none';
+                    
+                    img.onload = () => {
+                        overlay.setAttribute('width', img.naturalWidth);
+                        overlay.setAttribute('height', img.naturalHeight);
+                        overlay.style.width = img.naturalWidth + 'px';
+                        overlay.style.height = img.naturalHeight + 'px';
+                        drawOverlay(data.zones || [], data.cameras || []);
+                    };
+                } else {
+                    img.style.display = 'none';
+                    placeholder.style.display = 'flex';
+                    overlay.innerHTML = '';
+                }
+                
+                planViewer.reset();
+            })
+            .catch(err => console.error('Error loading plan:', err));
     }
     
-    function drawOverlay() {
-        const svg = document.getElementById('planOverlay');
-        const img = document.getElementById('planImage');
-        svg.setAttribute('viewBox', '0 0 ' + img.naturalWidth + ' ' + img.naturalHeight);
-        
+    function drawOverlay(zones, cameras) {
+        const svg = document.getElementById('plan-overlay');
         let html = '';
         
         // Draw zones
         zones.forEach(zone => {
             try {
-                const polygon = JSON.parse(zone.polygon);
-                if (Array.isArray(polygon) && polygon.length > 2) {
-                    const points = polygon.map(p => p.join(',')).join(' ');
-                    const color = zone.risk_level === 'HIGH' ? 'rgba(239,68,68,0.3)' : 
-                                  zone.risk_level === 'MEDIUM' ? 'rgba(245,158,11,0.3)' : 'rgba(16,185,129,0.3)';
-                    const stroke = zone.risk_level === 'HIGH' ? '#ef4444' : 
-                                   zone.risk_level === 'MEDIUM' ? '#f59e0b' : '#10b981';
-                    html += '<polygon points="' + points + '" fill="' + color + '" stroke="' + stroke + '" stroke-width="2" class="zone-polygon" data-zone="' + zone.id + '" data-name="' + zone.name + '"/>';
+                const points = JSON.parse(zone.polygon || '[]');
+                if (points.length >= 3) {
+                    const pointsStr = points.map(p => p.join(',')).join(' ');
+                    const color = zone.risk_level === 'HIGH' ? 'rgba(220,53,69,0.3)' : 
+                                  zone.risk_level === 'MEDIUM' ? 'rgba(255,193,7,0.3)' : 'rgba(40,167,69,0.3)';
+                    const stroke = zone.risk_level === 'HIGH' ? '#dc3545' : 
+                                   zone.risk_level === 'MEDIUM' ? '#ffc107' : '#28a745';
+                    html += `<polygon points="${pointsStr}" fill="${color}" stroke="${stroke}" stroke-width="2" class="zone-polygon" data-zone-id="${zone.id}">
+                        <title>${zone.name || 'Zone'} (${zone.risk_level})</title>
+                    </polygon>`;
                 }
             } catch(e) {}
         });
@@ -182,93 +346,103 @@
         cameras.forEach(cam => {
             const x = cam.x_plan || 50;
             const y = cam.y_plan || 50;
-            html += '<g class="camera-marker" data-camera="' + cam.id + '" data-name="' + cam.name + '" data-webcam="' + (cam.is_webcam ? '1' : '0') + '" onclick="openCamera(' + cam.id + ', \'' + cam.name + '\', ' + (cam.is_webcam || 0) + ')" style="cursor:pointer">';
-            html += '<circle cx="' + x + '" cy="' + y + '" r="12" fill="#2563eb" stroke="white" stroke-width="2"/>';
-            html += '<text x="' + x + '" y="' + (y+4) + '" text-anchor="middle" fill="white" font-size="10" font-weight="bold"><tspan>\uf508</tspan></text>';
-            html += '</g>';
+            const isWebcam = cam.stream_url === 'webcam:local';
+            html += `<g class="camera-marker" data-camera-id="${cam.id}" data-webcam="${isWebcam}" onclick="openCamera(${cam.id}, ${isWebcam}, '${cam.name || 'Caméra'}')" style="cursor:pointer;">
+                <circle cx="${x}" cy="${y}" r="15" fill="#2563eb" stroke="#fff" stroke-width="2"/>
+                <text x="${x}" y="${y+5}" text-anchor="middle" fill="#fff" font-size="12" font-weight="bold">
+                    <tspan>${isWebcam ? '📷' : '🎥'}</tspan>
+                </text>
+                <title>${cam.name || 'Caméra'}</title>
+            </g>`;
         });
         
         svg.innerHTML = html;
     }
     
-    function zoomIn() { currentZoom = Math.min(currentZoom * 1.2, 5); applyTransform(); }
-    function zoomOut() { currentZoom = Math.max(currentZoom / 1.2, 0.5); applyTransform(); }
-    function rotateLeft() { currentRotation -= 90; applyTransform(); }
-    function rotateRight() { currentRotation += 90; applyTransform(); }
-    function resetView() { currentZoom = 1; currentRotation = 0; applyTransform(); }
-    
-    function applyTransform() {
-        const wrapper = document.getElementById('planWrapper');
-        wrapper.style.transform = 'scale(' + currentZoom + ') rotate(' + currentRotation + 'deg)';
-    }
-    
-    function openCamera(id, name, isWebcam) {
-        document.getElementById('cameraModalTitle').textContent = name;
-        const video = document.getElementById('cameraVideo');
-        const offline = document.getElementById('cameraOffline');
+    function openCamera(camId, isWebcam, name) {
+        currentCameraId = camId;
+        document.getElementById('camera-modal-title').textContent = name;
+        document.getElementById('camera-loading').classList.remove('d-none');
+        document.getElementById('camera-error').classList.add('d-none');
+        document.getElementById('camera-video').style.display = 'none';
+        document.getElementById('camera-rtsp-img').style.display = 'none';
         
-        video.style.display = 'none';
-        offline.style.display = 'none';
+        const modal = new bootstrap.Modal(document.getElementById('cameraModal'));
+        modal.show();
         
         if (isWebcam) {
-            navigator.mediaDevices.getUserMedia({ video: true })
-                .then(stream => {
-                    video.srcObject = stream;
-                    video.style.display = 'block';
-                })
-                .catch(() => {
-                    offline.style.display = 'flex';
-                });
+            startWebcam();
         } else {
-            offline.innerHTML = '<i class="bi bi-camera-video"></i><p>Flux RTSP - Connexion...</p>';
-            offline.style.display = 'flex';
+            // For RTSP, show placeholder (would need server-side transcoding)
+            document.getElementById('camera-loading').classList.add('d-none');
+            document.getElementById('camera-error').classList.remove('d-none');
+            document.getElementById('camera-error').innerHTML = `
+                <i class="bi bi-camera-video" style="font-size:3rem;"></i>
+                <p class="mt-2">Flux RTSP non disponible en direct</p>
+                <small>Les flux RTSP nécessitent un serveur de streaming</small>
+            `;
         }
-        
-        new bootstrap.Modal(document.getElementById('cameraModal')).show();
     }
     
-    // Stop video when modal closes
-    document.getElementById('cameraModal').addEventListener('hidden.bs.modal', () => {
-        const video = document.getElementById('cameraVideo');
-        if (video.srcObject) {
-            video.srcObject.getTracks().forEach(t => t.stop());
+    async function startWebcam() {
+        const video = document.getElementById('camera-video');
+        const loading = document.getElementById('camera-loading');
+        const error = document.getElementById('camera-error');
+        
+        try {
+            // Stop any existing stream
+            stopCameraStream();
+            
+            // Request camera access
+            currentCameraStream = await navigator.mediaDevices.getUserMedia({
+                video: { 
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    facingMode: 'environment'
+                },
+                audio: false
+            });
+            
+            video.srcObject = currentCameraStream;
+            video.style.display = 'block';
+            loading.classList.add('d-none');
+            error.classList.add('d-none');
+            
+            await video.play();
+        } catch (err) {
+            console.error('Webcam error:', err);
+            loading.classList.add('d-none');
+            error.classList.remove('d-none');
+            error.innerHTML = `
+                <i class="bi bi-exclamation-circle" style="font-size:3rem;"></i>
+                <p class="mt-2">Impossible d'accéder à la webcam</p>
+                <small>${err.message}</small>
+                <br><button class="btn btn-primary mt-3" onclick="startWebcam()">Réessayer</button>
+            `;
+        }
+    }
+    
+    function stopCameraStream() {
+        if (currentCameraStream) {
+            currentCameraStream.getTracks().forEach(track => track.stop());
+            currentCameraStream = null;
+        }
+        const video = document.getElementById('camera-video');
+        if (video) {
             video.srcObject = null;
         }
-    });
+    }
     
-    // Auto-select first plan
-    window.onload = () => {
-        const select = document.getElementById('levelSelect');
-        if (select.options.length > 1) {
-            select.selectedIndex = 1;
-            loadPlan(select.value);
+    function retryCameraStream() {
+        const isWebcam = document.querySelector(`[data-camera-id="${currentCameraId}"]`)?.dataset.webcam === 'true';
+        if (isWebcam) {
+            startWebcam();
         }
-    };
+    }
+    
+    // Close stream when modal closes
+    document.getElementById('cameraModal')?.addEventListener('hidden.bs.modal', stopCameraStream);
     </script>
 </body>
 </html>
-{{end}}
-
-{{define "sidebar"}}
-<nav class="sidebar">
-    <div class="sidebar-header"><i class="bi bi-shield-check"></i><span>SafeSite AI</span></div>
-    <div class="current-site">
-        <div class="site-badge"><i class="bi bi-building"></i></div>
-        <div class="site-info">
-            <div class="site-name">{{.Site.Name}}</div>
-            <div class="site-location">{{.Site.Location}}</div>
-        </div>
-        <a href="/select-site" class="btn btn-sm btn-outline-light" title="Changer de site"><i class="bi bi-arrow-repeat"></i></a>
-    </div>
-    <ul class="nav flex-column">
-        <li class="nav-item"><a class="nav-link" href="/"><i class="bi bi-speedometer2"></i> Tableau de bord</a></li>
-        <li class="nav-item"><a class="nav-link" href="/cameras"><i class="bi bi-camera-video"></i> Caméras</a></li>
-        <li class="nav-item"><a class="nav-link" href="/alertes"><i class="bi bi-exclamation-triangle"></i> Alertes</a></li>
-        <li class="nav-item"><a class="nav-link" href="/zones"><i class="bi bi-geo-alt"></i> Zones</a></li>
-        <li class="nav-item"><a class="nav-link" href="/analyses"><i class="bi bi-graph-up"></i> Analyses IA</a></li>
-        <li class="nav-item"><a class="nav-link" href="/rapports"><i class="bi bi-file-earmark-text"></i> Rapports</a></li>
-        <li class="nav-divider"></li>
-        <li class="nav-item"><a class="nav-link" href="/admin"><i class="bi bi-gear"></i> Administration</a></li>
-    </ul>
-</nav>
 {{end}}

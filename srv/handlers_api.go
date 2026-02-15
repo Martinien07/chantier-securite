@@ -323,3 +323,14 @@ func (s *Server) HandleAPIDeleteZone(w http.ResponseWriter, r *http.Request) {
 	s.Queries.DeleteZone(ctx, id)
 	s.jsonResponse(w, map[string]string{"status": "ok"})
 }
+
+func (s *Server) HandleAPIGetZone(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	zone, err := s.Queries.GetZone(ctx, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	s.jsonResponse(w, zone)
+}

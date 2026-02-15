@@ -98,6 +98,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("PUT /api/admin/cameras/{id}", s.HandleAPIUpdateCamera)
 	mux.HandleFunc("DELETE /api/admin/cameras/{id}", s.HandleAPIDeleteCamera)
 	mux.HandleFunc("POST /api/admin/zones", s.HandleAPICreateZone)
+	mux.HandleFunc("GET /api/admin/zones/{id}", s.HandleAPIGetZone)
 	mux.HandleFunc("PUT /api/admin/zones/{id}", s.HandleAPIUpdateZone)
 	mux.HandleFunc("DELETE /api/admin/zones/{id}", s.HandleAPIDeleteZone)
 

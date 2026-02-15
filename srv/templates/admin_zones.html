@@ -4,35 +4,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SafeSite AI - Zones</title>
+    <title>SafeSite AI - Gestion des Zones</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <link href="/static/style.css" rel="stylesheet">
+    <style>
+        .zone-canvas-container {
+            position: relative;
+            background: #f1f5f9;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: crosshair;
+        }
+        .zone-canvas-container img {
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
+        .zone-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .zone-point {
+            fill: #2563eb;
+            stroke: white;
+            stroke-width: 2;
+            cursor: move;
+        }
+        .zone-point:hover {
+            fill: #1d4ed8;
+            r: 10;
+        }
+        .zone-line {
+            stroke: #2563eb;
+            stroke-width: 2;
+            stroke-dasharray: 5,5;
+        }
+        .zone-polygon-preview {
+            fill: rgba(37, 99, 235, 0.2);
+            stroke: #2563eb;
+            stroke-width: 2;
+        }
+        .zone-validation {
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        .zone-validation.valid {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .zone-validation.invalid {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .points-list {
+            max-height: 150px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.85rem;
+            background: #f8fafc;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        .no-plan-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 300px;
+            color: #94a3b8;
+        }
+        .no-plan-placeholder i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+    </style>
 </head>
 <body>
-    <div class="d-flex">
+    <div class="app-container">
         {{template "sidebar" .}}
         <main class="main-content">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="page-title mb-0"><i class="bi bi-geo-alt"></i> Zones de surveillance</h1>
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addZoneModal"><i class="bi bi-plus me-2"></i>Nouvelle zone</button>
+                <h1 class="page-title"><i class="bi bi-geo-alt"></i> Gestion des Zones</h1>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#zoneModal" onclick="resetZoneForm()">
+                    <i class="bi bi-plus-lg"></i> Nouvelle zone
+                </button>
             </div>
+
             <div class="card">
-                <div class="card-body p-0">
-                    <table class="table table-hover mb-0">
-                        <thead><tr><th>Nom</th><th>Type</th><th>Niveau</th><th>Risque</th><th>Statut</th><th>Actions</th></tr></thead>
+                <div class="card-body">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Nom</th>
+                                <th>Plan</th>
+                                <th>Type</th>
+                                <th>Niveau de risque</th>
+                                <th>Statut</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
                         <tbody>
                             {{range .Zones}}
                             <tr>
-                                <td><strong>{{.Name}}</strong></td>
-                                <td>{{.Type}}</td>
-                                <td>{{.Level}}</td>
-                                <td><span class="badge badge-{{.RiskLevel}}">{{.RiskLevel}}</span></td>
-                                <td>{{if .IsActive}}<span class="badge bg-success">Active</span>{{else}}<span class="badge bg-secondary">Inactive</span>{{end}}</td>
-                                <td><button class="btn btn-sm btn-outline-danger" onclick="deleteZone({{.ID}})"><i class="bi bi-trash"></i></button></td>
+                                <td><strong>{{if .Name}}{{.Name}}{{else}}-{{end}}</strong></td>
+                                <td>{{if .Level}}{{.Level}}{{else}}Plan {{.PlanID}}{{end}}</td>
+                                <td>
+                                    {{if eq .Type "height"}}<span class="badge bg-danger">Hauteur</span>
+                                    {{else if eq .Type "machine"}}<span class="badge bg-warning text-dark">Machine</span>
+                                    {{else if eq .Type "chemical"}}<span class="badge bg-purple">Chimique</span>
+                                    {{else if eq .Type "traffic"}}<span class="badge bg-info">Circulation</span>
+                                    {{else}}<span class="badge bg-secondary">{{.Type}}</span>{{end}}
+                                </td>
+                                <td>
+                                    {{if eq .RiskLevel "HIGH"}}<span class="badge bg-danger">Élevé</span>
+                                    {{else if eq .RiskLevel "MEDIUM"}}<span class="badge bg-warning text-dark">Moyen</span>
+                                    {{else}}<span class="badge bg-success">Faible</span>{{end}}
+                                </td>
+                                <td>
+                                    {{if .IsActive}}<span class="badge bg-success">Active</span>
+                                    {{else}}<span class="badge bg-secondary">Inactive</span>{{end}}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="editZone({{.ID}})"><i class="bi bi-pencil"></i></button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteZone({{.ID}})"><i class="bi bi-trash"></i></button>
+                                </td>
                             </tr>
                             {{else}}
-                            <tr><td colspan="6" class="text-center py-4 text-muted">Aucune zone</td></tr>
+                            <tr><td colspan="6" class="text-center text-muted">Aucune zone définie</td></tr>
                             {{end}}
                         </tbody>
                     </table>
@@ -40,64 +144,330 @@
             </div>
         </main>
     </div>
-    
-    <!-- Modal ajout zone -->
-    <div class="modal fade" id="addZoneModal"><div class="modal-dialog"><div class="modal-content">
-        <div class="modal-header"><h5 class="modal-title">Nouvelle zone</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-        <div class="modal-body">
-            <form id="addZoneForm">
-                <div class="mb-3"><label class="form-label">Plan</label>
-                    <select class="form-select" name="plan_id" required>
-                        {{range .Plans}}<option value="{{.ID}}">{{.Level}}</option>{{end}}
-                    </select>
+
+    <!-- Modal Zone -->
+    <div class="modal fade" id="zoneModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-geo-alt"></i> <span id="zone-modal-title">Nouvelle zone</span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="mb-3"><label class="form-label">Nom</label><input type="text" class="form-control" name="name" required></div>
-                <div class="mb-3"><label class="form-label">Type</label>
-                    <select class="form-select" name="type">
-                        <option value="height">Travail en hauteur</option>
-                        <option value="machine">Zone machine</option>
-                        <option value="chemical">Zone chimique</option>
-                        <option value="traffic">Circulation</option>
-                        <option value="storage">Stockage</option>
-                        <option value="other">Autre</option>
-                    </select>
+                <div class="modal-body">
+                    <div class="row">
+                        <!-- Formulaire -->
+                        <div class="col-md-4">
+                            <form id="zoneForm">
+                                <input type="hidden" id="zone-id" name="id">
+                                <input type="hidden" id="zone-polygon" name="polygon">
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Nom de la zone *</label>
+                                    <input type="text" class="form-control" id="zone-name" name="name" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Plan / Niveau *</label>
+                                    <select class="form-select" id="zone-plan" name="plan_id" required onchange="loadPlanForDrawing(this.value)">
+                                        <option value="">Sélectionner un plan</option>
+                                        {{range .Plans}}
+                                        <option value="{{.ID}}" data-image="{{if .ImagePath}}{{.ImagePath}}{{end}}">{{if .Level}}{{.Level}}{{else}}Plan {{.ID}}{{end}}</option>
+                                        {{end}}
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Type de zone *</label>
+                                    <select class="form-select" id="zone-type" name="type" required>
+                                        <option value="height">Zone en hauteur</option>
+                                        <option value="machine">Zone machine</option>
+                                        <option value="chemical">Zone chimique</option>
+                                        <option value="traffic">Zone de circulation</option>
+                                        <option value="storage">Zone de stockage</option>
+                                        <option value="work">Zone de travail</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Niveau de risque *</label>
+                                    <select class="form-select" id="zone-risk" name="risk_level" required>
+                                        <option value="LOW">Faible</option>
+                                        <option value="MEDIUM">Moyen</option>
+                                        <option value="HIGH">Élevé</option>
+                                    </select>
+                                </div>
+                                
+                                <hr>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Points de la zone</label>
+                                    <div class="d-flex gap-2 mb-2">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" onclick="undoLastPoint()">
+                                            <i class="bi bi-arrow-counterclockwise"></i> Annuler
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger btn-sm flex-fill" onclick="clearAllPoints()">
+                                            <i class="bi bi-trash"></i> Effacer
+                                        </button>
+                                    </div>
+                                    <button type="button" class="btn btn-info w-100 mb-2" onclick="validateZone()">
+                                        <i class="bi bi-check-circle"></i> Vérifier la zone
+                                    </button>
+                                    <div id="zone-validation"></div>
+                                    <div id="points-list" class="points-list d-none"></div>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <!-- Zone de dessin -->
+                        <div class="col-md-8">
+                            <div class="alert alert-info mb-3">
+                                <i class="bi bi-info-circle"></i> <strong>Instructions:</strong> Cliquez sur le plan pour définir les points de la zone. Les points forment automatiquement un polygone fermé.
+                            </div>
+                            <div id="zone-canvas-wrapper" class="zone-canvas-container">
+                                <div id="no-plan-message" class="no-plan-placeholder">
+                                    <i class="bi bi-image"></i>
+                                    <p>Sélectionnez un plan pour commencer</p>
+                                </div>
+                                <img id="zone-plan-image" src="" alt="Plan" style="display:none;">
+                                <svg id="zone-canvas" class="zone-canvas"></svg>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="mb-3"><label class="form-label">Niveau de risque</label>
-                    <select class="form-select" name="risk_level">
-                        <option value="HIGH">Critique</option>
-                        <option value="MEDIUM">Moyen</option>
-                        <option value="LOW">Faible</option>
-                    </select>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-primary" onclick="saveZone()" id="btn-save-zone">
+                        <i class="bi bi-check-lg"></i> Enregistrer
+                    </button>
                 </div>
-                <div class="mb-3"><label class="form-label">Polygone (JSON)</label>
-                    <textarea class="form-control" name="polygon" rows="3" placeholder='[[100,100],[200,100],[200,200],[100,200]]'></textarea>
-                    <div class="form-text">Coordonnées des points du polygone sur le plan</div>
-                </div>
-            </form>
+            </div>
         </div>
-        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="button" class="btn btn-primary" onclick="addZone()">Créer</button></div>
-    </div></div></div>
-    
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-    function addZone() {
-        const fd = new FormData(document.getElementById('addZoneForm'));
-        fetch('/api/admin/zones', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                plan_id: parseInt(fd.get('plan_id')),
-                name: fd.get('name'),
-                type: fd.get('type'),
-                risk_level: fd.get('risk_level'),
-                polygon: fd.get('polygon') || '[]'
-            })
-        }).then(() => location.reload());
+    // Zone drawing state
+    let zonePoints = [];
+    let isZoneValid = false;
+    let currentPlanImage = null;
+    
+    function resetZoneForm() {
+        document.getElementById('zone-modal-title').textContent = 'Nouvelle zone';
+        document.getElementById('zoneForm').reset();
+        document.getElementById('zone-id').value = '';
+        document.getElementById('zone-polygon').value = '';
+        zonePoints = [];
+        isZoneValid = false;
+        updateZoneCanvas();
+        document.getElementById('zone-validation').innerHTML = '';
+        document.getElementById('points-list').classList.add('d-none');
+        document.getElementById('zone-plan-image').style.display = 'none';
+        document.getElementById('no-plan-message').style.display = 'flex';
     }
+    
+    function loadPlanForDrawing(planId) {
+        const select = document.getElementById('zone-plan');
+        const option = select.options[select.selectedIndex];
+        const imagePath = option?.dataset.image;
+        const img = document.getElementById('zone-plan-image');
+        const noMsg = document.getElementById('no-plan-message');
+        
+        zonePoints = [];
+        updateZoneCanvas();
+        
+        if (imagePath) {
+            img.src = imagePath;
+            img.style.display = 'block';
+            noMsg.style.display = 'none';
+            
+            img.onload = () => {
+                const svg = document.getElementById('zone-canvas');
+                svg.setAttribute('viewBox', `0 0 ${img.naturalWidth} ${img.naturalHeight}`);
+                currentPlanImage = { width: img.naturalWidth, height: img.naturalHeight };
+            };
+        } else {
+            img.style.display = 'none';
+            noMsg.style.display = 'flex';
+            currentPlanImage = null;
+        }
+    }
+    
+    // Click handler for adding points
+    document.getElementById('zone-canvas-wrapper').addEventListener('click', function(e) {
+        if (!currentPlanImage) return;
+        
+        const rect = this.getBoundingClientRect();
+        const img = document.getElementById('zone-plan-image');
+        
+        // Calculate position relative to the image
+        const scaleX = currentPlanImage.width / img.clientWidth;
+        const scaleY = currentPlanImage.height / img.clientHeight;
+        
+        const x = Math.round((e.clientX - rect.left) * scaleX);
+        const y = Math.round((e.clientY - rect.top) * scaleY);
+        
+        zonePoints.push([x, y]);
+        isZoneValid = false;
+        updateZoneCanvas();
+    });
+    
+    function updateZoneCanvas() {
+        const svg = document.getElementById('zone-canvas');
+        let html = '';
+        
+        // Draw lines between points
+        if (zonePoints.length > 1) {
+            for (let i = 0; i < zonePoints.length - 1; i++) {
+                html += `<line x1="${zonePoints[i][0]}" y1="${zonePoints[i][1]}" 
+                              x2="${zonePoints[i+1][0]}" y2="${zonePoints[i+1][1]}" 
+                              class="zone-line"/>`;
+            }
+        }
+        
+        // Draw closing line if valid
+        if (zonePoints.length >= 3 && isZoneValid) {
+            const pointsStr = zonePoints.map(p => p.join(',')).join(' ');
+            html += `<polygon points="${pointsStr}" class="zone-polygon-preview"/>`;
+        }
+        
+        // Draw points
+        zonePoints.forEach((p, i) => {
+            html += `<circle cx="${p[0]}" cy="${p[1]}" r="8" class="zone-point" data-index="${i}">
+                <title>Point ${i + 1}: (${p[0]}, ${p[1]})</title>
+            </circle>`;
+            html += `<text x="${p[0]}" y="${p[1] - 15}" text-anchor="middle" fill="#1e40af" font-size="14" font-weight="bold">${i + 1}</text>`;
+        });
+        
+        svg.innerHTML = html;
+        
+        // Update points list
+        const list = document.getElementById('points-list');
+        if (zonePoints.length > 0) {
+            list.classList.remove('d-none');
+            list.innerHTML = '<strong>Coordonnées:</strong><br>' + 
+                zonePoints.map((p, i) => `Point ${i+1}: [${p[0]}, ${p[1]}]`).join('<br>');
+        } else {
+            list.classList.add('d-none');
+        }
+    }
+    
+    function undoLastPoint() {
+        if (zonePoints.length > 0) {
+            zonePoints.pop();
+            isZoneValid = false;
+            updateZoneCanvas();
+            document.getElementById('zone-validation').innerHTML = '';
+        }
+    }
+    
+    function clearAllPoints() {
+        zonePoints = [];
+        isZoneValid = false;
+        updateZoneCanvas();
+        document.getElementById('zone-validation').innerHTML = '';
+    }
+    
+    function validateZone() {
+        const validation = document.getElementById('zone-validation');
+        
+        if (zonePoints.length < 3) {
+            validation.innerHTML = `<div class="zone-validation invalid">
+                <i class="bi bi-x-circle"></i> <strong>Zone invalide:</strong> Minimum 3 points requis (actuellement: ${zonePoints.length})
+            </div>`;
+            isZoneValid = false;
+        } else {
+            // Check if polygon is valid (not self-intersecting) - simplified check
+            isZoneValid = true;
+            
+            // Generate JSON
+            const json = JSON.stringify(zonePoints);
+            document.getElementById('zone-polygon').value = json;
+            
+            validation.innerHTML = `<div class="zone-validation valid">
+                <i class="bi bi-check-circle"></i> <strong>Zone valide!</strong> ${zonePoints.length} points définis.
+            </div>
+            <div class="mt-2">
+                <small class="text-muted">JSON:</small>
+                <pre class="bg-light p-2 rounded small" style="max-height:100px;overflow:auto;">${json}</pre>
+            </div>`;
+        }
+        
+        updateZoneCanvas();
+        return isZoneValid;
+    }
+    
+    function saveZone() {
+        if (!validateZone()) {
+            alert('Veuillez définir une zone valide (minimum 3 points)');
+            return;
+        }
+        
+        const form = document.getElementById('zoneForm');
+        const id = document.getElementById('zone-id').value;
+        const data = {
+            plan_id: parseInt(document.getElementById('zone-plan').value),
+            name: document.getElementById('zone-name').value,
+            type: document.getElementById('zone-type').value,
+            risk_level: document.getElementById('zone-risk').value,
+            polygon: document.getElementById('zone-polygon').value
+        };
+        
+        const url = id ? `/api/admin/zones/${id}` : '/api/admin/zones';
+        const method = id ? 'PUT' : 'POST';
+        
+        fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(r => {
+            if (!r.ok) throw new Error('Erreur serveur');
+            return r.json();
+        })
+        .then(() => {
+            bootstrap.Modal.getInstance(document.getElementById('zoneModal')).hide();
+            location.reload();
+        })
+        .catch(err => alert('Erreur: ' + err.message));
+    }
+    
+    function editZone(id) {
+        fetch(`/api/admin/zones/${id}`)
+            .then(r => r.json())
+            .then(zone => {
+                document.getElementById('zone-modal-title').textContent = 'Modifier la zone';
+                document.getElementById('zone-id').value = zone.id;
+                document.getElementById('zone-name').value = zone.name || '';
+                document.getElementById('zone-plan').value = zone.plan_id || '';
+                document.getElementById('zone-type').value = zone.type || 'work';
+                document.getElementById('zone-risk').value = zone.risk_level || 'LOW';
+                
+                // Load plan and points
+                loadPlanForDrawing(zone.plan_id);
+                
+                try {
+                    zonePoints = JSON.parse(zone.polygon || '[]');
+                } catch(e) {
+                    zonePoints = [];
+                }
+                
+                setTimeout(() => {
+                    updateZoneCanvas();
+                    validateZone();
+                }, 500);
+                
+                new bootstrap.Modal(document.getElementById('zoneModal')).show();
+            });
+    }
+    
     function deleteZone(id) {
-        if(confirm('Supprimer?')) fetch('/api/admin/zones/' + id, {method: 'DELETE'}).then(() => location.reload());
+        if (confirm('Supprimer cette zone?')) {
+            fetch(`/api/admin/zones/${id}`, { method: 'DELETE' })
+                .then(() => location.reload());
+        }
     }
     </script>
 </body>
 </html>
 {{end}}
+
