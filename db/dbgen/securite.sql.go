@@ -688,7 +688,7 @@ func (q *Queries) GetZone(ctx context.Context, id int64) (Zone, error) {
 }
 
 const listActiveAlerts = `-- name: ListActiveAlerts :many
-SELECT a.id, a.risk_event_id, a.alert_level, a.status, a.sent_at, a.acknowledged_at, re.explanation, z.name as zone_name FROM alerts a
+SELECT a.id, a.risk_event_id, a.alert_level, a.status, a.sent_at, a.acknowledged_at, a.camera_id, re.explanation, z.name as zone_name FROM alerts a
 LEFT JOIN risk_events re ON a.risk_event_id = re.id
 LEFT JOIN zones z ON re.zone_id = z.id
 WHERE a.status = 'new'
@@ -702,6 +702,7 @@ type ListActiveAlertsRow struct {
 	Status         *string    `json:"status"`
 	SentAt         time.Time  `json:"sent_at"`
 	AcknowledgedAt *time.Time `json:"acknowledged_at"`
+	CameraID       *int64     `json:"camera_id"`
 	Explanation    *string    `json:"explanation"`
 	ZoneName       *string    `json:"zone_name"`
 }
@@ -722,6 +723,7 @@ func (q *Queries) ListActiveAlerts(ctx context.Context) ([]ListActiveAlertsRow, 
 			&i.Status,
 			&i.SentAt,
 			&i.AcknowledgedAt,
+			&i.CameraID,
 			&i.Explanation,
 			&i.ZoneName,
 		); err != nil {
@@ -739,7 +741,7 @@ func (q *Queries) ListActiveAlerts(ctx context.Context) ([]ListActiveAlertsRow, 
 }
 
 const listAlerts = `-- name: ListAlerts :many
-SELECT a.id, a.risk_event_id, a.alert_level, a.status, a.sent_at, a.acknowledged_at, re.explanation, z.name as zone_name FROM alerts a
+SELECT a.id, a.risk_event_id, a.alert_level, a.status, a.sent_at, a.acknowledged_at, a.camera_id, re.explanation, z.name as zone_name FROM alerts a
 LEFT JOIN risk_events re ON a.risk_event_id = re.id
 LEFT JOIN zones z ON re.zone_id = z.id
 ORDER BY a.sent_at DESC LIMIT ?
@@ -752,6 +754,7 @@ type ListAlertsRow struct {
 	Status         *string    `json:"status"`
 	SentAt         time.Time  `json:"sent_at"`
 	AcknowledgedAt *time.Time `json:"acknowledged_at"`
+	CameraID       *int64     `json:"camera_id"`
 	Explanation    *string    `json:"explanation"`
 	ZoneName       *string    `json:"zone_name"`
 }
@@ -773,6 +776,7 @@ func (q *Queries) ListAlerts(ctx context.Context, limit int64) ([]ListAlertsRow,
 			&i.Status,
 			&i.SentAt,
 			&i.AcknowledgedAt,
+			&i.CameraID,
 			&i.Explanation,
 			&i.ZoneName,
 		); err != nil {
@@ -790,23 +794,37 @@ func (q *Queries) ListAlerts(ctx context.Context, limit int64) ([]ListAlertsRow,
 }
 
 const listAlertsBySite = `-- name: ListAlertsBySite :many
-SELECT a.id, a.risk_event_id, a.alert_level, a.status, a.sent_at, a.acknowledged_at, re.explanation, z.name as zone_name FROM alerts a
+SELECT a.id, a.risk_event_id, a.alert_level, a.status, a.sent_at, a.acknowledged_at, a.camera_id,
+       re.explanation, z.name as zone_name, 
+       c.name as camera_name, c.x_plan as camera_x, c.y_plan as camera_y, 
+       c.orientation as camera_orientation, c.fov as camera_fov, c.plan_id as camera_plan_id,
+       c.is_webcam as camera_is_webcam
+FROM alerts a
 LEFT JOIN risk_events re ON a.risk_event_id = re.id
 LEFT JOIN zones z ON re.zone_id = z.id
-LEFT JOIN plans p ON z.plan_id = p.id
+LEFT JOIN cameras c ON a.camera_id = c.id
+LEFT JOIN plans p ON c.plan_id = p.id
 WHERE p.site_id = ?
 ORDER BY a.sent_at DESC LIMIT 50
 `
 
 type ListAlertsBySiteRow struct {
-	ID             int64      `json:"id"`
-	RiskEventID    *int64     `json:"risk_event_id"`
-	AlertLevel     *string    `json:"alert_level"`
-	Status         *string    `json:"status"`
-	SentAt         time.Time  `json:"sent_at"`
-	AcknowledgedAt *time.Time `json:"acknowledged_at"`
-	Explanation    *string    `json:"explanation"`
-	ZoneName       *string    `json:"zone_name"`
+	ID                int64      `json:"id"`
+	RiskEventID       *int64     `json:"risk_event_id"`
+	AlertLevel        *string    `json:"alert_level"`
+	Status            *string    `json:"status"`
+	SentAt            time.Time  `json:"sent_at"`
+	AcknowledgedAt    *time.Time `json:"acknowledged_at"`
+	CameraID          *int64     `json:"camera_id"`
+	Explanation       *string    `json:"explanation"`
+	ZoneName          *string    `json:"zone_name"`
+	CameraName        *string    `json:"camera_name"`
+	CameraX           *float64   `json:"camera_x"`
+	CameraY           *float64   `json:"camera_y"`
+	CameraOrientation *float64   `json:"camera_orientation"`
+	CameraFov         *float64   `json:"camera_fov"`
+	CameraPlanID      *int64     `json:"camera_plan_id"`
+	CameraIsWebcam    *int64     `json:"camera_is_webcam"`
 }
 
 func (q *Queries) ListAlertsBySite(ctx context.Context, siteID *int64) ([]ListAlertsBySiteRow, error) {
@@ -825,8 +843,16 @@ func (q *Queries) ListAlertsBySite(ctx context.Context, siteID *int64) ([]ListAl
 			&i.Status,
 			&i.SentAt,
 			&i.AcknowledgedAt,
+			&i.CameraID,
 			&i.Explanation,
 			&i.ZoneName,
+			&i.CameraName,
+			&i.CameraX,
+			&i.CameraY,
+			&i.CameraOrientation,
+			&i.CameraFov,
+			&i.CameraPlanID,
+			&i.CameraIsWebcam,
 		); err != nil {
 			return nil, err
 		}

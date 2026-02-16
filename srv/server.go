@@ -80,6 +80,7 @@ func (s *Server) Handler() http.Handler {
 	// API endpoints
 	mux.HandleFunc("GET /api/stats", s.requireSiteAPI(s.HandleAPIStats))
 	mux.HandleFunc("GET /api/alerts", s.requireSiteAPI(s.HandleAPIAlerts))
+	mux.HandleFunc("GET /api/alerts/active", s.requireSiteAPI(s.HandleAPIActiveAlerts))
 	mux.HandleFunc("GET /api/cameras", s.requireSiteAPI(s.HandleAPICameras))
 	mux.HandleFunc("GET /api/sites", s.HandleAPISites)
 	mux.HandleFunc("GET /api/sites/search", s.HandleAPISearchSites)

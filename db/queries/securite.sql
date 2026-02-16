@@ -143,10 +143,16 @@ LEFT JOIN zones z ON re.zone_id = z.id
 ORDER BY a.sent_at DESC LIMIT ?;
 
 -- name: ListAlertsBySite :many
-SELECT a.*, re.explanation, z.name as zone_name FROM alerts a
+SELECT a.id, a.risk_event_id, a.alert_level, a.status, a.sent_at, a.acknowledged_at, a.camera_id,
+       re.explanation, z.name as zone_name, 
+       c.name as camera_name, c.x_plan as camera_x, c.y_plan as camera_y, 
+       c.orientation as camera_orientation, c.fov as camera_fov, c.plan_id as camera_plan_id,
+       c.is_webcam as camera_is_webcam
+FROM alerts a
 LEFT JOIN risk_events re ON a.risk_event_id = re.id
 LEFT JOIN zones z ON re.zone_id = z.id
-LEFT JOIN plans p ON z.plan_id = p.id
+LEFT JOIN cameras c ON a.camera_id = c.id
+LEFT JOIN plans p ON c.plan_id = p.id
 WHERE p.site_id = ?
 ORDER BY a.sent_at DESC LIMIT 50;
 

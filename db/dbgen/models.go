@@ -37,6 +37,7 @@ type Alert struct {
 	Status         *string    `json:"status"`
 	SentAt         time.Time  `json:"sent_at"`
 	AcknowledgedAt *time.Time `json:"acknowledged_at"`
+	CameraID       *int64     `json:"camera_id"`
 }
 
 type Camera struct {

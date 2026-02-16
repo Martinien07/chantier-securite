@@ -183,7 +183,9 @@ CREATE TABLE IF NOT EXISTS alerts (
     status TEXT DEFAULT 'new',
     sent_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     acknowledged_at TIMESTAMP,
-    FOREIGN KEY (risk_event_id) REFERENCES risk_events(id)
+    camera_id INTEGER,
+    FOREIGN KEY (risk_event_id) REFERENCES risk_events(id),
+    FOREIGN KEY (camera_id) REFERENCES cameras(id)
 );
 
 -- Human Decisions

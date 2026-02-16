@@ -611,6 +611,21 @@
         });
     }
     
+    // Store active alerts for the current plan
+    let currentAlerts = [];
+    
+    function loadAlerts() {
+        fetch('/api/alerts/active')
+            .then(r => r.json())
+            .then(data => {
+                currentAlerts = data || [];
+                // Redraw cameras if plan is loaded
+                const planId = document.getElementById('level-select')?.value;
+                if (planId) loadPlan(planId);
+            })
+            .catch(err => console.error('Error loading alerts:', err));
+    }
+    
     function drawCameras(cameras) {
         const g = document.getElementById('plan-cameras');
         g.innerHTML = '';
@@ -619,16 +634,57 @@
             const x = cam.x_plan || 50;
             const y = cam.y_plan || 50;
             const isWebcam = cam.stream_url === 'webcam:local' || cam.is_webcam === 1;
-            const color = isWebcam ? '#7c3aed' : '#2563eb';
+            const baseColor = isWebcam ? '#7c3aed' : '#2563eb';
             
-            g.innerHTML += `
-                <g class="camera-marker" data-camera-id="${cam.id}" data-webcam="${isWebcam}" 
-                   style="cursor: pointer;" onclick="openCamera(${cam.id}, ${isWebcam}, '${cam.name || 'Caméra'}')">
-                    <circle cx="${x}" cy="${y}" r="15" fill="${color}" fill-opacity="0.2" stroke="${color}" stroke-width="2"/>
-                    <circle cx="${x}" cy="${y}" r="8" fill="${color}"/>
-                    <text x="${x}" y="${y + 30}" text-anchor="middle" fill="#1e293b" font-size="10" font-weight="500">${cam.name || ''}</text>
-                </g>
-            `;
+            // Check if this camera has an active alert
+            const alert = currentAlerts.find(a => a.camera_id === cam.id);
+            const hasAlert = !!alert;
+            const alertLevel = alert?.alert_level || 'LOW';
+            
+            // Camera coverage zone (FOV cone)
+            const fov = cam.fov || 90;
+            const orientation = cam.orientation || 0;
+            const range = 80;
+            const startAngle = (orientation - fov/2) * Math.PI / 180;
+            const endAngle = (orientation + fov/2) * Math.PI / 180;
+            
+            const x1 = x + range * Math.cos(startAngle);
+            const y1 = y + range * Math.sin(startAngle);
+            const x2 = x + range * Math.cos(endAngle);
+            const y2 = y + range * Math.sin(endAngle);
+            const largeArc = fov > 180 ? 1 : 0;
+            
+            let coverageColor, coverageStroke, coverageOpacity;
+            if (hasAlert) {
+                if (alertLevel === 'HIGH') {
+                    coverageColor = '#ef4444'; coverageStroke = '#dc2626'; coverageOpacity = 0.5;
+                } else if (alertLevel === 'MEDIUM') {
+                    coverageColor = '#f59e0b'; coverageStroke = '#d97706'; coverageOpacity = 0.4;
+                } else {
+                    coverageColor = '#22c55e'; coverageStroke = '#16a34a'; coverageOpacity = 0.3;
+                }
+            } else {
+                coverageColor = baseColor; coverageStroke = baseColor; coverageOpacity = 0.15;
+            }
+            
+            const coveragePath = `M ${x},${y} L ${x1},${y1} A ${range},${range} 0 ${largeArc},1 ${x2},${y2} Z`;
+            const camName = (cam.name || '').replace(/'/g, "\\'");
+            
+            let html = `<g class="camera-group" data-camera-id="${cam.id}" data-webcam="${isWebcam}">`;
+            html += `<path d="${coveragePath}" fill="${coverageColor}" fill-opacity="${coverageOpacity}" stroke="${coverageStroke}" stroke-width="${hasAlert ? 2 : 1}" stroke-opacity="${hasAlert ? 0.8 : 0.3}" class="camera-coverage ${hasAlert ? 'has-alert' : ''}"/>`;
+            html += `<g class="camera-marker" style="cursor: pointer;" onclick="openCamera(${cam.id}, ${isWebcam}, '${camName}')">`;
+            html += `<circle cx="${x}" cy="${y}" r="12" fill="${hasAlert ? coverageColor : baseColor}" fill-opacity="0.3" stroke="${hasAlert ? coverageColor : baseColor}" stroke-width="2"/>`;
+            html += `<circle cx="${x}" cy="${y}" r="6" fill="${hasAlert ? coverageColor : baseColor}"/>`;
+            if (hasAlert) {
+                html += `<circle cx="${x}" cy="${y}" r="18" fill="none" stroke="${coverageColor}" stroke-width="2" opacity="0.6"><animate attributeName="r" from="18" to="30" dur="1.5s" repeatCount="indefinite"/><animate attributeName="opacity" from="0.6" to="0" dur="1.5s" repeatCount="indefinite"/></circle>`;
+            }
+            html += `<text x="${x}" y="${y + 28}" text-anchor="middle" fill="#1e293b" font-size="9" font-weight="600">${cam.name || ''}</text>`;
+            if (hasAlert) {
+                html += `<text x="${x}" y="${y + 40}" text-anchor="middle" fill="${coverageColor}" font-size="8" font-weight="bold">⚠ ALERTE</text>`;
+            }
+            html += `</g></g>`;
+            
+            g.innerHTML += html;
         });
     }
     
@@ -730,10 +786,23 @@
         planViewer.init();
         loadChart('week');
         
-        const select = document.getElementById('level-select');
-        if (select.options.length > 0) {
-            loadPlan(select.value);
-        }
+        // Load alerts first, then load plan
+        fetch('/api/alerts/active')
+            .then(r => r.json())
+            .then(data => {
+                currentAlerts = data || [];
+                const select = document.getElementById('level-select');
+                if (select.options.length > 0) {
+                    loadPlan(select.value);
+                }
+            })
+            .catch(() => {
+                currentAlerts = [];
+                const select = document.getElementById('level-select');
+                if (select.options.length > 0) {
+                    loadPlan(select.value);
+                }
+            });
     });
     </script>
 </body>

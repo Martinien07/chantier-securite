@@ -334,3 +334,34 @@ func (s *Server) HandleAPIGetZone(w http.ResponseWriter, r *http.Request) {
 	}
 	s.jsonResponse(w, zone)
 }
+
+// HandleAPIActiveAlerts returns alerts with camera_id for plan overlay
+func (s *Server) HandleAPIActiveAlerts(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	siteID := s.getCurrentSiteID(r)
+	alerts, err := s.Queries.ListAlertsBySite(ctx, &siteID)
+	if err != nil {
+		s.jsonResponse(w, []struct{}{})
+		return
+	}
+	
+	var result []map[string]any
+	for _, a := range alerts {
+		if ptrStr(a.Status) != "new" && ptrStr(a.Status) != "acknowledged" {
+			continue
+		}
+		result = append(result, map[string]any{
+			"id":          a.ID,
+			"alert_level": ptrStr(a.AlertLevel),
+			"status":      ptrStr(a.Status),
+			"camera_id":   ptrInt(a.CameraID),
+			"camera_name": ptrStr(a.CameraName),
+			"explanation": ptrStr(a.Explanation),
+		})
+	}
+	
+	if result == nil {
+		result = []map[string]any{}
+	}
+	s.jsonResponse(w, result)
+}
