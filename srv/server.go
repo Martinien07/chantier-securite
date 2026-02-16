@@ -88,6 +88,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/plans", s.requireSiteAPI(s.HandleAPIPlans))
 	mux.HandleFunc("GET /api/plans/{id}/data", s.HandleAPIPlanData)
 	mux.HandleFunc("GET /api/detections/recent", s.requireSiteAPI(s.HandleAPIRecentDetections))
+	mux.HandleFunc("PUT /api/alerts/{id}", s.HandleAPIUpdateAlert)
 	mux.HandleFunc("POST /api/alerts/{id}/acknowledge", s.HandleAPIAckAlert)
 	mux.HandleFunc("POST /api/alerts/{id}/close", s.HandleAPICloseAlert)
 

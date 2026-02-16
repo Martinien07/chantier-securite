@@ -365,3 +365,28 @@ func (s *Server) HandleAPIActiveAlerts(w http.ResponseWriter, r *http.Request) {
 	}
 	s.jsonResponse(w, result)
 }
+
+func (s *Server) HandleAPIUpdateAlert(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	
+	var req struct {
+		Level  string `json:"level"`
+		Status string `json:"status"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	
+	// Update alert
+	_, err := s.DB.ExecContext(ctx, 
+		"UPDATE alerts SET alert_level = ?, status = ? WHERE id = ?",
+		req.Level, req.Status, id)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	
+	s.jsonResponse(w, map[string]string{"status": "ok"})
+}
