@@ -61,9 +61,8 @@ func (q *Queries) CountActiveAlerts(ctx context.Context) (int64, error) {
 
 const countActiveAlertsBySite = `-- name: CountActiveAlertsBySite :one
 SELECT COUNT(*) FROM alerts a
-JOIN risk_events re ON a.risk_event_id = re.id
-JOIN zones z ON re.zone_id = z.id
-JOIN plans p ON z.plan_id = p.id
+JOIN cameras c ON a.camera_id = c.id
+JOIN plans p ON c.plan_id = p.id
 WHERE a.status = 'new' AND p.site_id = ?
 `
 

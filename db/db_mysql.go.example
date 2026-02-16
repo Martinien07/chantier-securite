@@ -1,0 +1,56 @@
+//go:build mysql
+// +build mysql
+
+package db
+
+import (
+	"database/sql"
+	"fmt"
+	"log/slog"
+	"os"
+
+	_ "github.com/go-sql-driver/mysql"
+)
+
+// OpenMySQL ouvre une connexion MySQL
+// DSN format: user:password@tcp(host:port)/database
+func OpenMySQL(dsn string) (*sql.DB, error) {
+	if dsn == "" {
+		// Utiliser les variables d'environnement
+		dsn = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true",
+			getEnv("DB_USER", "root"),
+			getEnv("DB_PASSWORD", ""),
+			getEnv("DB_HOST", "127.0.0.1"),
+			getEnv("DB_PORT", "3306"),
+			getEnv("DB_NAME", "safesite"),
+		)
+	}
+
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open mysql: %w", err)
+	}
+
+	// Test connection
+	if err := db.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to ping mysql: %w", err)
+	}
+
+	slog.Info("db: connected to MySQL")
+	return db, nil
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+// RunMySQLMigrations exécute les migrations MySQL
+// Note: Pour MySQL, utilisez un outil comme golang-migrate ou dbmate
+func RunMySQLMigrations(db *sql.DB) error {
+	slog.Info("db: MySQL migrations should be run separately")
+	slog.Info("db: Use: mysql -u root -p safesite < db/mysql/schema.sql")
+	return nil
+}
