@@ -667,18 +667,49 @@
         fetch(`/api/plans/${planId}/data`)
             .then(r => r.json())
             .then(data => {
-                // Set plan image
+                // Set plan image and adjust viewBox to match actual image dimensions
                 const planImage = document.getElementById('plan-image');
+                const planSvg = document.getElementById('plan-svg');
+                
                 if (data.plan.image_path) {
-                    planImage.setAttribute('href', data.plan.image_path);
+                    // Create a temporary image to get real dimensions
+                    const tempImg = new Image();
+                    tempImg.onload = function() {
+                        const w = tempImg.naturalWidth || 800;
+                        const h = tempImg.naturalHeight || 600;
+                        
+                        // Update SVG viewBox and image dimensions to match
+                        planSvg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+                        planImage.setAttribute('width', w);
+                        planImage.setAttribute('height', h);
+                        planImage.setAttribute('href', data.plan.image_path);
+                        
+                        // Draw zones and cameras after viewBox is set
+                        drawZones(data.zones || []);
+                        drawCameras(data.cameras || []);
+                        updateZoneTypes(data.zones || []);
+                        loadCameraPreviews(data.cameras || []);
+                        
+                        planViewer.reset();
+                    };
+                    tempImg.onerror = function() {
+                        // Fallback to default dimensions
+                        planSvg.setAttribute('viewBox', '0 0 800 600');
+                        planImage.setAttribute('href', data.plan.image_path);
+                        drawZones(data.zones || []);
+                        drawCameras(data.cameras || []);
+                        updateZoneTypes(data.zones || []);
+                        loadCameraPreviews(data.cameras || []);
+                        planViewer.reset();
+                    };
+                    tempImg.src = data.plan.image_path;
+                } else {
+                    drawZones(data.zones || []);
+                    drawCameras(data.cameras || []);
+                    updateZoneTypes(data.zones || []);
+                    loadCameraPreviews(data.cameras || []);
+                    planViewer.reset();
                 }
-                
-                drawZones(data.zones || []);
-                drawCameras(data.cameras || []);
-                updateZoneTypes(data.zones || []);
-                loadCameraPreviews(data.cameras || []);
-                
-                planViewer.reset();
             })
             .catch(err => console.error('Error loading plan:', err));
     }
