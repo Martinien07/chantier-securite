@@ -260,10 +260,18 @@
         document.getElementById('zone-polygon').value = '';
         zonePoints = [];
         isZoneValid = false;
-        updateZoneCanvas();
         document.getElementById('zone-validation').innerHTML = '';
         document.getElementById('points-list').classList.add('d-none');
-        document.getElementById('zone-canvas').style.display = 'none';
+        
+        // Reset SVG to initial state
+        const svg = document.getElementById('zone-canvas');
+        svg.style.display = 'none';
+        svg.innerHTML = `
+            <image id="zone-plan-image" x="0" y="0" width="800" height="600" href=""/>
+            <g id="zone-points-group"></g>
+        `;
+        svg.setAttribute('viewBox', '0 0 800 600');
+        
         document.getElementById('no-plan-message').style.display = 'flex';
         currentPlanImage = null;
     }
@@ -273,11 +281,9 @@
         const option = select.options[select.selectedIndex];
         const imagePath = option?.dataset.image;
         const svg = document.getElementById('zone-canvas');
-        const img = document.getElementById('zone-plan-image');
         const noMsg = document.getElementById('no-plan-message');
         
         zonePoints = [];
-        updateZoneCanvas();
         
         if (imagePath) {
             // Load image to get dimensions
@@ -286,22 +292,28 @@
                 const w = tempImg.naturalWidth || 800;
                 const h = tempImg.naturalHeight || 600;
                 
-                // Update SVG viewBox and image to match actual dimensions
+                // Rebuild SVG content with correct dimensions
                 svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
-                img.setAttribute('width', w);
-                img.setAttribute('height', h);
-                img.setAttribute('href', imagePath);
+                svg.innerHTML = `
+                    <image id="zone-plan-image" x="0" y="0" width="${w}" height="${h}" href="${imagePath}"/>
+                    <g id="zone-points-group"></g>
+                `;
                 
                 svg.style.display = 'block';
                 noMsg.style.display = 'none';
                 currentPlanImage = { width: w, height: h };
+                updateZoneCanvas();
             };
             tempImg.onerror = function() {
                 svg.setAttribute('viewBox', '0 0 800 600');
-                img.setAttribute('href', imagePath);
+                svg.innerHTML = `
+                    <image id="zone-plan-image" x="0" y="0" width="800" height="600" href="${imagePath}"/>
+                    <g id="zone-points-group"></g>
+                `;
                 svg.style.display = 'block';
                 noMsg.style.display = 'none';
                 currentPlanImage = { width: 800, height: 600 };
+                updateZoneCanvas();
             };
             tempImg.src = imagePath;
         } else {
