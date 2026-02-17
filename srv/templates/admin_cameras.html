@@ -432,26 +432,54 @@
             if (planViewer.isDragging) return;
             
             const container = document.getElementById('plan-container');
+            const preview = document.getElementById('plan-preview');
+            const img = preview?.querySelector('img');
+            
+            if (!img || !img.complete) return;
+            
             const rect = container.getBoundingClientRect();
             
             // Get click position relative to container
             const clickX = e.clientX - rect.left;
             const clickY = e.clientY - rect.top;
             
-            // Convert to SVG coordinates (accounting for pan and zoom)
-            // The SVG viewBox is always 800x600, so we need to map container coordinates to that
-            const containerWidth = rect.width;
-            const containerHeight = rect.height;
-            
-            // Remove pan offset and scale
+            // Account for pan and zoom
             const unscaledX = (clickX - planViewer.panX) / planViewer.scale;
             const unscaledY = (clickY - planViewer.panY) / planViewer.scale;
             
-            // Map to SVG viewBox coordinates (800x600)
+            // SVG viewBox is always 800x600
             const svgWidth = 800;
             const svgHeight = 600;
-            const x = Math.round((unscaledX / containerWidth) * svgWidth);
-            const y = Math.round((unscaledY / containerHeight) * svgHeight);
+            const svgRatio = svgWidth / svgHeight;
+            
+            // Account for object-fit: contain (image keeps aspect ratio)
+            const containerWidth = rect.width;
+            const containerHeight = rect.height;
+            const containerRatio = containerWidth / containerHeight;
+            
+            let imgDisplayWidth, imgDisplayHeight, imgOffsetX, imgOffsetY;
+            
+            if (containerRatio > svgRatio) {
+                // Container is wider - bars on sides
+                imgDisplayHeight = containerHeight;
+                imgDisplayWidth = containerHeight * svgRatio;
+                imgOffsetX = (containerWidth - imgDisplayWidth) / 2;
+                imgOffsetY = 0;
+            } else {
+                // Container is taller - bars on top/bottom
+                imgDisplayWidth = containerWidth;
+                imgDisplayHeight = containerWidth / svgRatio;
+                imgOffsetX = 0;
+                imgOffsetY = (containerHeight - imgDisplayHeight) / 2;
+            }
+            
+            // Convert click to image coordinates
+            const imgX = unscaledX - imgOffsetX;
+            const imgY = unscaledY - imgOffsetY;
+            
+            // Map to SVG viewBox coordinates
+            const x = Math.round((imgX / imgDisplayWidth) * svgWidth);
+            const y = Math.round((imgY / imgDisplayHeight) * svgHeight);
             
             if (x >= 0 && x <= svgWidth && y >= 0 && y <= svgHeight) {
                 showMarker(x, y, true);
@@ -534,14 +562,39 @@
             const marker = document.getElementById('camera-marker');
             if (!marker) return;
             
-            // Convert SVG coords (800x600) to display coords
+            // Convert SVG coords (800x600) to display coords, accounting for object-fit: contain
             const container = document.getElementById('plan-container');
             const rect = container.getBoundingClientRect();
-            const displayX = (x / 800) * rect.width;
-            const displayY = (y / 600) * rect.height;
             
-            marker.style.left = displayX + 'px';
-            marker.style.top = displayY + 'px';
+            const svgWidth = 800;
+            const svgHeight = 600;
+            const svgRatio = svgWidth / svgHeight;
+            const containerRatio = rect.width / rect.height;
+            
+            let imgDisplayWidth, imgDisplayHeight, imgOffsetX, imgOffsetY;
+            
+            if (containerRatio > svgRatio) {
+                imgDisplayHeight = rect.height;
+                imgDisplayWidth = rect.height * svgRatio;
+                imgOffsetX = (rect.width - imgDisplayWidth) / 2;
+                imgOffsetY = 0;
+            } else {
+                imgDisplayWidth = rect.width;
+                imgDisplayHeight = rect.width / svgRatio;
+                imgOffsetX = 0;
+                imgOffsetY = (rect.height - imgDisplayHeight) / 2;
+            }
+            
+            // Convert SVG coordinates to display coordinates
+            const displayX = (x / svgWidth) * imgDisplayWidth + imgOffsetX;
+            const displayY = (y / svgHeight) * imgDisplayHeight + imgOffsetY;
+            
+            // Apply current transform
+            const finalX = displayX * planViewer.scale + planViewer.panX;
+            const finalY = displayY * planViewer.scale + planViewer.panY;
+            
+            marker.style.left = finalX + 'px';
+            marker.style.top = finalY + 'px';
             marker.style.display = 'block';
             
             if (pending) {
