@@ -305,6 +305,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        console.log("SCRIPT LOADED");
         // Plans data
         const plans = [
             {{range .Plans}}
@@ -432,31 +433,31 @@
             
             const container = document.getElementById('plan-container');
             const rect = container.getBoundingClientRect();
-            const wrapper = document.getElementById('plan-wrapper');
             
             // Get click position relative to container
             const clickX = e.clientX - rect.left;
             const clickY = e.clientY - rect.top;
             
-            // Convert to image coordinates (accounting for pan and zoom)
-            const imgX = (clickX - planViewer.panX) / planViewer.scale;
-            const imgY = (clickY - planViewer.panY) / planViewer.scale;
-            
-            // Scale to actual image dimensions
+            // Convert to SVG coordinates (accounting for pan and zoom)
+            // The SVG viewBox is always 800x600, so we need to map container coordinates to that
             const containerWidth = rect.width;
             const containerHeight = rect.height;
-            const scaleX = imageSize.width / containerWidth;
-            const scaleY = imageSize.height / containerHeight;
             
-            const x = Math.round(imgX * scaleX);
-            const y = Math.round(imgY * scaleY);
+            // Remove pan offset and scale
+            const unscaledX = (clickX - planViewer.panX) / planViewer.scale;
+            const unscaledY = (clickY - planViewer.panY) / planViewer.scale;
             
-            if (x >= 0 && x <= imageSize.width && y >= 0 && y <= imageSize.height) {
+            // Map to SVG viewBox coordinates (800x600)
+            const svgWidth = 800;
+            const svgHeight = 600;
+            const x = Math.round((unscaledX / containerWidth) * svgWidth);
+            const y = Math.round((unscaledY / containerHeight) * svgHeight);
+            
+            if (x >= 0 && x <= svgWidth && y >= 0 && y <= svgHeight) {
                 showMarker(x, y, true);
                 showConfirmDialog(x, y, clickX, clickY);
             }
         }
-        
         function handleWheel(e) {
             if (!e.ctrlKey) return;
             e.preventDefault();
@@ -533,11 +534,11 @@
             const marker = document.getElementById('camera-marker');
             if (!marker) return;
             
-            // Convert image coords to display coords
+            // Convert SVG coords (800x600) to display coords
             const container = document.getElementById('plan-container');
             const rect = container.getBoundingClientRect();
-            const displayX = (x / imageSize.width) * rect.width;
-            const displayY = (y / imageSize.height) * rect.height;
+            const displayX = (x / 800) * rect.width;
+            const displayY = (y / 600) * rect.height;
             
             marker.style.left = displayX + 'px';
             marker.style.top = displayY + 'px';
