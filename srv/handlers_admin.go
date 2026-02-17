@@ -104,8 +104,9 @@ func (s *Server) HandleAdminZones(w http.ResponseWriter, r *http.Request) {
 	var planViews []PlanView
 	for _, p := range plans {
 		planViews = append(planViews, PlanView{
-			ID:    p.ID,
-			Level: ptrStr(p.Level),
+			ID:        p.ID,
+			Level:     ptrStr(p.Level),
+			ImagePath: ptrStr(p.ImagePath),
 		})
 	}
 	s.render(w, "admin_zones", map[string]any{"Site": s.siteViewFromDB(site), "Zones": views, "Plans": planViews})
