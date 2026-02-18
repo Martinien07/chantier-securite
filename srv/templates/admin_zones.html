@@ -268,8 +268,10 @@
         svg.style.display = 'none';
         svg.innerHTML = `
             <image id="zone-plan-image" x="0" y="0" width="800" height="600" href=""/>
-            <g id="zone-points-group"></g>
-        `;
+            <g id="zone-points-group"></g>`;
+        
+        // Reset wrapper aspect ratio
+        document.getElementById('zone-canvas-wrapper').style.aspectRatio = '';
         svg.setAttribute('viewBox', '0 0 800 600');
         
         document.getElementById('no-plan-message').style.display = 'flex';
@@ -299,6 +301,10 @@
                     <g id="zone-points-group"></g>
                 `;
                 
+                // Set container aspect ratio to match image
+                const wrapper = document.getElementById('zone-canvas-wrapper');
+                wrapper.style.aspectRatio = `${w} / ${h}`;
+                
                 svg.style.display = 'block';
                 noMsg.style.display = 'none';
                 currentPlanImage = { width: w, height: h };
@@ -310,6 +316,11 @@
                     <image id="zone-plan-image" x="0" y="0" width="800" height="600" href="${imagePath}"/>
                     <g id="zone-points-group"></g>
                 `;
+                
+                // Set default aspect ratio
+                const wrapper = document.getElementById('zone-canvas-wrapper');
+                wrapper.style.aspectRatio = '800 / 600';
+                
                 svg.style.display = 'block';
                 noMsg.style.display = 'none';
                 currentPlanImage = { width: 800, height: 600 };
