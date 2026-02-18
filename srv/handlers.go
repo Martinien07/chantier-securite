@@ -81,6 +81,7 @@ type ZoneView struct {
 	RiskLevel string
 	PlanID    int64
 	Level     string
+	SiteName  string
 	IsActive  bool
 }
 
@@ -201,6 +202,11 @@ func (s *Server) HandleZones(w http.ResponseWriter, r *http.Request) {
 	siteID := s.getCurrentSiteID(r)
 	zones, _ := s.Queries.ListZonesBySite(ctx, &siteID)
 
+	siteName := ""
+	if site != nil {
+		siteName = site.Name
+	}
+
 	var views []ZoneView
 	for _, z := range zones {
 		views = append(views, ZoneView{
@@ -211,6 +217,7 @@ func (s *Server) HandleZones(w http.ResponseWriter, r *http.Request) {
 			RiskLevel: ptrStr(z.RiskLevel),
 			PlanID:    ptrInt(z.PlanID),
 			Level:     ptrStr(z.PlanLevel),
+			SiteName:  siteName,
 			IsActive:  ptrInt(z.IsActive) == 1,
 		})
 	}

@@ -104,6 +104,13 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("PUT /api/admin/zones/{id}", s.HandleAPIUpdateZone)
 	mux.HandleFunc("DELETE /api/admin/zones/{id}", s.HandleAPIDeleteZone)
 
+	// Admin authentication and sites management
+	mux.HandleFunc("POST /api/admin/auth", s.HandleAPIAdminAuth)
+	mux.HandleFunc("GET /admin/sites", s.requireAdminAuth(s.HandleAdminSites))
+	mux.HandleFunc("POST /api/admin/sites", s.requireAdminAuth(s.HandleAPICreateSite))
+	mux.HandleFunc("PUT /api/admin/sites/{id}", s.requireAdminAuth(s.HandleAPIUpdateSite))
+	mux.HandleFunc("DELETE /api/admin/sites/{id}", s.requireAdminAuth(s.HandleAPIDeleteSite))
+
 	return mux
 }
 

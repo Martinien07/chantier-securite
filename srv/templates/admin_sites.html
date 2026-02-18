@@ -4,58 +4,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SafeSite AI - Sites</title>
+    <title>SafeSite AI - Gestion des Sites</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="/static/style.css" rel="stylesheet">
+    <style>
+        :root { --primary: #2563eb; }
+        body { background: #f1f5f9; min-height: 100vh; }
+        .navbar { background: linear-gradient(135deg, #1e3a5f 0%, #0f2744 100%); }
+        .main-container { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+        .card { border: none; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .card-header { background: white; border-bottom: 1px solid #e2e8f0; font-weight: 600; }
+        .site-row { display: flex; align-items: center; padding: 1rem; border-bottom: 1px solid #e2e8f0; }
+        .site-row:last-child { border-bottom: none; }
+        .site-row:hover { background: #f8fafc; }
+        .site-icon { width: 48px; height: 48px; background: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.25rem; margin-right: 1rem; }
+        .site-info { flex: 1; }
+        .site-info h5 { margin: 0; font-weight: 600; }
+        .site-info p { margin: 0; font-size: 0.875rem; color: #64748b; }
+        .btn-action { padding: 0.4rem 0.6rem; }
+    </style>
 </head>
 <body>
-    <div class="d-flex">
-        {{template "sidebar"}}
-        <main class="main-content">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="page-title mb-0"><i class="bi bi-building"></i> Gestion des sites</h1>
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSiteModal"><i class="bi bi-plus me-2"></i>Nouveau</button>
+    <nav class="navbar navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/select-site">
+                <i class="bi bi-shield-check me-2"></i>SafeSite AI
+            </a>
+            <a href="/select-site" class="btn btn-outline-light btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Retour
+            </a>
+        </div>
+    </nav>
+    
+    <div class="main-container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="bi bi-building me-2"></i>Gestion des Sites</h2>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#siteModal" onclick="resetForm()">
+                <i class="bi bi-plus-lg me-1"></i>Nouveau site
+            </button>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-list me-2"></i>Liste des sites ({{len .Sites}})
             </div>
-            <div class="card">
-                <div class="card-body p-0">
-                    <table class="table table-hover mb-0">
-                        <thead><tr><th>ID</th><th>Nom</th><th>Localisation</th><th>Description</th><th>Actions</th></tr></thead>
-                        <tbody>
-                            {{range .Sites}}
-                            <tr>
-                                <td>{{.ID}}</td>
-                                <td><strong>{{.Name}}</strong></td>
-                                <td>{{.Location}}</td>
-                                <td>{{.Description}}</td>
-                                <td><button class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></button></td>
-                            </tr>
-                            {{else}}
-                            <tr><td colspan="5" class="text-center py-4 text-muted">Aucun site</td></tr>
-                            {{end}}
-                        </tbody>
-                    </table>
+            <div class="card-body p-0">
+                {{range .Sites}}
+                <div class="site-row" data-id="{{.ID}}">
+                    <div class="site-icon"><i class="bi bi-building"></i></div>
+                    <div class="site-info">
+                        <h5>{{if .Name}}{{.Name}}{{else}}Sans nom{{end}}</h5>
+                        <p><i class="bi bi-geo-alt me-1"></i>{{if .Location}}{{.Location}}{{else}}Non défini{{end}}</p>
+                    </div>
+                    <div class="site-actions">
+                        <button class="btn btn-outline-primary btn-action me-1" onclick="editSite({{.ID}}, '{{.Name}}', '{{.Location}}')">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-action" onclick="deleteSite({{.ID}}, '{{.Name}}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                {{else}}
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-building" style="font-size: 3rem;"></i>
+                    <p class="mt-2">Aucun site configuré</p>
+                </div>
+                {{end}}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal ajout/modification site -->
+    <div class="modal fade" id="siteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle"><i class="bi bi-building me-2"></i>Nouveau site</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="siteId">
+                    <div class="mb-3">
+                        <label class="form-label">Nom du site *</label>
+                        <input type="text" class="form-control" id="siteName" placeholder="Ex: Tour Horizon" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Localisation</label>
+                        <input type="text" class="form-control" id="siteLocation" placeholder="Ex: Paris La Défense">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-primary" onclick="saveSite()">
+                        <i class="bi bi-check-lg me-1"></i>Enregistrer
+                    </button>
                 </div>
             </div>
-        </main>
-    </div>
-    <div class="modal fade" id="addSiteModal"><div class="modal-dialog"><div class="modal-content">
-        <div class="modal-header"><h5 class="modal-title">Nouveau site</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-        <div class="modal-body">
-            <form id="addSiteForm">
-                <div class="mb-3"><label class="form-label">Nom</label><input type="text" class="form-control" name="name" required></div>
-                <div class="mb-3"><label class="form-label">Localisation</label><input type="text" class="form-control" name="location"></div>
-                <div class="mb-3"><label class="form-label">Description</label><textarea class="form-control" name="description"></textarea></div>
-            </form>
         </div>
-        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="button" class="btn btn-primary" onclick="addSite()">Créer</button></div>
-    </div></div></div>
+    </div>
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-    function addSite() {
-        const form = document.getElementById('addSiteForm');
-        const data = Object.fromEntries(new FormData(form));
-        fetch('/api/admin/sites', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)}).then(()=>location.reload());
+    const siteModal = new bootstrap.Modal(document.getElementById('siteModal'));
+    
+    function resetForm() {
+        document.getElementById('modalTitle').innerHTML = '<i class="bi bi-building me-2"></i>Nouveau site';
+        document.getElementById('siteId').value = '';
+        document.getElementById('siteName').value = '';
+        document.getElementById('siteLocation').value = '';
+    }
+    
+    function editSite(id, name, location) {
+        document.getElementById('modalTitle').innerHTML = '<i class="bi bi-pencil me-2"></i>Modifier le site';
+        document.getElementById('siteId').value = id;
+        document.getElementById('siteName').value = name || '';
+        document.getElementById('siteLocation').value = location || '';
+        siteModal.show();
+    }
+    
+    function saveSite() {
+        const id = document.getElementById('siteId').value;
+        const name = document.getElementById('siteName').value.trim();
+        const location = document.getElementById('siteLocation').value.trim();
+        
+        if (!name) {
+            alert('Le nom du site est requis');
+            return;
+        }
+        
+        const url = id ? `/api/admin/sites/${id}` : '/api/admin/sites';
+        const method = id ? 'PUT' : 'POST';
+        
+        fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name, location})
+        })
+        .then(r => {
+            if (r.ok) {
+                location.reload();
+            } else {
+                alert('Erreur lors de l\'enregistrement');
+            }
+        })
+        .catch(() => alert('Erreur réseau'));
+    }
+    
+    function deleteSite(id, name) {
+        if (!confirm(`Êtes-vous sûr de vouloir supprimer le site "${name}" ?\n\nCette action supprimera également tous les plans, caméras et zones associés.`)) {
+            return;
+        }
+        
+        fetch(`/api/admin/sites/${id}`, {method: 'DELETE'})
+        .then(r => {
+            if (r.ok) {
+                location.reload();
+            } else {
+                alert('Erreur lors de la suppression');
+            }
+        })
+        .catch(() => alert('Erreur réseau'));
     }
     </script>
 </body>

@@ -8,6 +8,18 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <link href="/static/style.css" rel="stylesheet">
+    <style>
+        .badge-HIGH { background-color: #ef4444 !important; color: white; }
+        .badge-MEDIUM { background-color: #f59e0b !important; color: white; }
+        .badge-LOW { background-color: #22c55e !important; color: white; }
+        .badge-type { background-color: #3b82f6; color: white; }
+        .badge-type-construction { background-color: #6366f1; }
+        .badge-type-storage { background-color: #8b5cf6; }
+        .badge-type-circulation { background-color: #06b6d4; }
+        .badge-type-height { background-color: #f97316; }
+        .badge-type-safe { background-color: #10b981; }
+        .badge-type-work { background-color: #64748b; }
+    </style>
 </head>
 <body>
     <div class="d-flex">
@@ -15,21 +27,34 @@
         <main class="main-content">
             <h1 class="page-title"><i class="bi bi-geo-alt"></i> Zones de surveillance</h1>
             <div class="card">
-                <div class="card-header">Liste des zones</div>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Liste des zones</span>
+                    <a href="/admin/zones" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-gear"></i> Gérer les zones
+                    </a>
+                </div>
                 <div class="card-body p-0">
-                    <table class="table table-hover">
-                        <thead><tr><th>Nom</th><th>Type</th><th>Site / Niveau</th><th>Risque</th><th>Statut</th></tr></thead>
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>NOM</th>
+                                <th>PLAN</th>
+                                <th>TYPE</th>
+                                <th>NIVEAU DE RISQUE</th>
+                                <th>STATUT</th>
+                            </tr>
+                        </thead>
                         <tbody>
                             {{range .Zones}}
                             <tr>
                                 <td><strong>{{.Name}}</strong></td>
-                                <td>{{.Type}}</td>
-                                <td>{{.SiteName}} - {{.Level}}</td>
+                                <td>{{.Level}}</td>
+                                <td><span class="badge badge-type badge-type-{{.Type}}">{{.Type}}</span></td>
                                 <td><span class="badge badge-{{.RiskLevel}}">{{.RiskLevel}}</span></td>
                                 <td>{{if .IsActive}}<span class="badge bg-success">Active</span>{{else}}<span class="badge bg-secondary">Inactive</span>{{end}}</td>
                             </tr>
                             {{else}}
-                            <tr><td colspan="5" class="text-center text-muted py-4">Aucune zone</td></tr>
+                            <tr><td colspan="5" class="text-center text-muted py-4">Aucune zone définie pour ce site</td></tr>
                             {{end}}
                         </tbody>
                     </table>
