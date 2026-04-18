@@ -9,7 +9,7 @@ JOIN plans p ON c.plan_id = p.id
 WHERE a.status = 'new' AND p.site_id = ?;
 
 -- name: CountAlertsToday :one
-SELECT COUNT(*) FROM alerts WHERE date(sent_at) = date('now');
+SELECT COUNT(*) FROM alerts WHERE DATE(sent_at) = CURDATE();
 
 -- name: CountActiveCameras :one
 SELECT COUNT(*) FROM cameras;
@@ -28,13 +28,13 @@ JOIN plans p ON z.plan_id = p.id
 WHERE z.risk_level = 'HIGH' AND z.is_active = 1 AND p.site_id = ?;
 
 -- name: CountDetectionsToday :one
-SELECT COUNT(*) FROM detections WHERE date(timestamp) = date('now');
+SELECT COUNT(*) FROM detections WHERE DATE(timestamp) = CURDATE();
 
 -- name: CountDetectionsTodayBySite :one
 SELECT COUNT(*) FROM detections d
 JOIN cameras c ON d.camera_id = c.id
 JOIN plans p ON c.plan_id = p.id
-WHERE date(d.timestamp) = date('now') AND p.site_id = ?;
+WHERE DATE(d.timestamp) = CURDATE() AND p.site_id = ?;
 
 -- Sites
 -- name: ListSites :many
@@ -46,8 +46,11 @@ SELECT * FROM sites WHERE id = ?;
 -- name: SearchSites :many
 SELECT * FROM sites WHERE name LIKE ? OR location LIKE ? ORDER BY name LIMIT 20;
 
--- name: CreateSite :one
-INSERT INTO sites (name, location, description) VALUES (?, ?, ?) RETURNING *;
+-- name: CreateSite :execresult
+INSERT INTO sites (name, location, description) VALUES (?, ?, ?);
+
+-- name: GetSiteByID :one
+SELECT * FROM sites WHERE id = LAST_INSERT_ID();
 
 -- name: UpdateSite :exec
 UPDATE sites SET name = ?, location = ?, description = ? WHERE id = ?;
@@ -67,8 +70,11 @@ SELECT * FROM plans WHERE site_id = ? ORDER BY level;
 -- name: GetPlan :one
 SELECT * FROM plans WHERE id = ?;
 
--- name: CreatePlan :one
-INSERT INTO plans (site_id, level, image_path, scale_factor) VALUES (?, ?, ?, ?) RETURNING *;
+-- name: CreatePlan :execresult
+INSERT INTO plans (site_id, level, image_path, scale_factor) VALUES (?, ?, ?, ?);
+
+-- name: GetPlanByID :one
+SELECT * FROM plans WHERE id = LAST_INSERT_ID();
 
 -- name: UpdatePlan :exec
 UPDATE plans SET level = ?, image_path = ?, scale_factor = ? WHERE id = ?;
@@ -95,9 +101,12 @@ SELECT * FROM cameras WHERE plan_id = ?;
 -- name: GetCamera :one
 SELECT * FROM cameras WHERE id = ?;
 
--- name: CreateCamera :one
+-- name: CreateCamera :execresult
 INSERT INTO cameras (plan_id, name, stream_url, x_plan, y_plan, orientation, fov, is_webcam)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *;
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+-- name: GetCameraByID :one
+SELECT * FROM cameras WHERE id = LAST_INSERT_ID();
 
 -- name: UpdateCamera :exec
 UPDATE cameras SET name = ?, stream_url = ?, x_plan = ?, y_plan = ?, orientation = ?, fov = ?, is_webcam = ? WHERE id = ?;
@@ -124,9 +133,12 @@ SELECT * FROM zones WHERE plan_id = ?;
 -- name: GetZone :one
 SELECT * FROM zones WHERE id = ?;
 
--- name: CreateZone :one
+-- name: CreateZone :execresult
 INSERT INTO zones (plan_id, name, type, polygon, risk_level, is_active)
-VALUES (?, ?, ?, ?, ?, 1) RETURNING *;
+VALUES (?, ?, ?, ?, ?, 1);
+
+-- name: GetZoneByID :one
+SELECT * FROM zones WHERE id = LAST_INSERT_ID();
 
 -- name: UpdateZone :exec
 UPDATE zones SET name = ?, type = ?, polygon = ?, risk_level = ?, is_active = ? WHERE id = ?;
@@ -143,8 +155,8 @@ ORDER BY a.sent_at DESC LIMIT ?;
 
 -- name: ListAlertsBySite :many
 SELECT a.id, a.risk_event_id, a.alert_level, a.status, a.sent_at, a.acknowledged_at, a.camera_id,
-       re.explanation, z.name as zone_name, 
-       c.name as camera_name, c.x_plan as camera_x, c.y_plan as camera_y, 
+       re.explanation, z.name as zone_name,
+       c.name as camera_name, c.x_plan as camera_x, c.y_plan as camera_y,
        c.orientation as camera_orientation, c.fov as camera_fov, c.plan_id as camera_plan_id,
        c.is_webcam as camera_is_webcam
 FROM alerts a
@@ -189,8 +201,11 @@ SELECT * FROM users WHERE id = ?;
 -- name: GetUserByUsername :one
 SELECT * FROM users WHERE username = ?;
 
--- name: CreateUser :one
-INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?) RETURNING *;
+-- name: CreateUser :execresult
+INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?);
+
+-- name: GetUserByID :one
+SELECT * FROM users WHERE id = LAST_INSERT_ID();
 
 -- name: UpdateUser :exec
 UPDATE users SET username = ?, email = ?, is_active = ? WHERE id = ?;
@@ -206,7 +221,7 @@ DELETE FROM users WHERE id = ?;
 SELECT * FROM roles ORDER BY name;
 
 -- name: AssignRole :exec
-INSERT OR IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?);
+INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?);
 
 -- name: RemoveRole :exec
 DELETE FROM user_roles WHERE user_id = ? AND role_id = ?;
@@ -218,9 +233,12 @@ SELECT * FROM hse_rules ORDER BY severity DESC;
 -- name: GetHSERule :one
 SELECT * FROM hse_rules WHERE id = ?;
 
--- name: CreateHSERule :one
+-- name: CreateHSERule :execresult
 INSERT INTO hse_rules (name, description, condition_logic, severity, is_active)
-VALUES (?, ?, ?, ?, ?) RETURNING *;
+VALUES (?, ?, ?, ?, ?);
+
+-- name: GetHSERuleByID :one
+SELECT * FROM hse_rules WHERE id = LAST_INSERT_ID();
 
 -- name: UpdateHSERule :exec
 UPDATE hse_rules SET name = ?, description = ?, condition_logic = ?, severity = ?, is_active = ? WHERE id = ?;
@@ -235,8 +253,11 @@ SELECT * FROM models ORDER BY name;
 -- name: GetModel :one
 SELECT * FROM models WHERE id = ?;
 
--- name: CreateModel :one
-INSERT INTO models (name, type, version, metrics, is_active) VALUES (?, ?, ?, ?, ?) RETURNING *;
+-- name: CreateModel :execresult
+INSERT INTO models (name, type, version, metrics, is_active) VALUES (?, ?, ?, ?, ?);
+
+-- name: GetModelByID :one
+SELECT * FROM models WHERE id = LAST_INSERT_ID();
 
 -- name: UpdateModel :exec
 UPDATE models SET name = ?, type = ?, version = ?, metrics = ?, is_active = ? WHERE id = ?;

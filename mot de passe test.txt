@@ -1,0 +1,5 @@
+admin
+admin
+
+commande de démarrage
+.\safesite.exe -dsn "admin:admin@tcp(localhost:3306)/make_hse?parseTime=true"

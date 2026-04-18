@@ -37,7 +37,7 @@ func (s *Server) HandleAdminPlans(w http.ResponseWriter, r *http.Request) {
 	var views []PlanView
 	for _, p := range plans {
 		views = append(views, PlanView{
-			ID:          p.ID,
+			ID:          int64(p.ID),
 			Level:       ptrStr(p.Level),
 			ImagePath:   ptrStr(p.ImagePath),
 			ScaleFactor: ptrFloat(p.ScaleFactor),
@@ -56,7 +56,7 @@ func (s *Server) HandleAdminCameras(w http.ResponseWriter, r *http.Request) {
 	var views []CameraView
 	for _, c := range cameras {
 		views = append(views, CameraView{
-			ID:          c.ID,
+			ID:          int64(c.ID),
 			Name:        ptrStr(c.Name),
 			StreamURL:   ptrStr(c.StreamUrl),
 			PlanID:      ptrInt(c.PlanID),
@@ -72,7 +72,7 @@ func (s *Server) HandleAdminCameras(w http.ResponseWriter, r *http.Request) {
 	var planViews []PlanView
 	for _, p := range plans {
 		planViews = append(planViews, PlanView{
-			ID:        p.ID,
+			ID:        int64(p.ID),
 			Level:     ptrStr(p.Level),
 			ImagePath: ptrStr(p.ImagePath),
 		})
@@ -90,7 +90,7 @@ func (s *Server) HandleAdminZones(w http.ResponseWriter, r *http.Request) {
 	var views []ZoneView
 	for _, z := range zones {
 		views = append(views, ZoneView{
-			ID:        z.ID,
+			ID:        int64(z.ID),
 			Name:      ptrStr(z.Name),
 			Type:      ptrStr(z.Type),
 			Polygon:   z.Polygon,
@@ -104,7 +104,7 @@ func (s *Server) HandleAdminZones(w http.ResponseWriter, r *http.Request) {
 	var planViews []PlanView
 	for _, p := range plans {
 		planViews = append(planViews, PlanView{
-			ID:        p.ID,
+			ID:        int64(p.ID),
 			Level:     ptrStr(p.Level),
 			ImagePath: ptrStr(p.ImagePath),
 		})

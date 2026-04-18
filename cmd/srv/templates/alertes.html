@@ -1,0 +1,405 @@
+{{define "alertes"}}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeSite AI - Alertes</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="/static/style.css" rel="stylesheet">
+    <style>
+        .risk-badge { font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; text-transform:uppercase; }
+        .badge-CRITIQUE     { background:#fee2e2; color:#dc2626; }
+        .badge-ELEVE        { background:#fff3cd; color:#b45309; }
+        .badge-MOYEN        { background:#fef9c3; color:#854d0e; }
+        .badge-FAIBLE       { background:#d1fae5; color:#065f46; }
+        .badge-pending      { background:#fef3c7; color:#92400e; }
+        .badge-accepted     { background:#dbeafe; color:#1d4ed8; }
+        .badge-correcting   { background:#ede9fe; color:#5b21b6; }
+        .badge-rejected     { background:#f3f4f6; color:#6b7280; }
+        .badge-new          { background:#dbeafe; color:#1d4ed8; }
+        .badge-acknowledged { background:#d1fae5; color:#065f46; }
+        .badge-closed       { background:#e5e7eb; color:#374151; }
+        .pending-dot { width:8px; height:8px; border-radius:50%; background:#f59e0b; display:inline-block; margin-right:6px; animation:pulse 2s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+        .filter-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+        .filter-btn { border:1px solid #e2e8f0; background:#fff; padding:5px 14px; border-radius:20px; font-size:12px; font-weight:600; cursor:pointer; transition:.15s; }
+        .filter-btn.active { background:#1e293b; color:#fff; border-color:#1e293b; }
+        .filter-btn:hover:not(.active) { background:#f8fafc; }
+        .count-badge { display:inline-flex; align-items:center; justify-content:center; background:#dc2626; color:#fff; border-radius:50%; width:18px; height:18px; font-size:10px; font-weight:700; margin-left:4px; }
+        td { vertical-align:middle; }
+        .msg-cell { font-size:12px; color:#374151; max-width:350px; }
+        .msg-cell span { display:block; }
+        .msg-cell span::before { content:"• "; color:#9ca3af; }
+    </style>
+</head>
+<body>
+<div class="d-flex">
+    {{template "sidebar" .}}
+    <main class="main-content" style="padding:24px;">
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h1 class="page-title mb-0"><i class="bi bi-exclamation-triangle"></i> Alertes</h1>
+            <div class="d-flex align-items-center gap-2">
+                <span style="font-size:12px;color:#6b7280;">Mise à jour auto toutes les 5s</span>
+                <span id="refresh-dot" style="width:8px;height:8px;border-radius:50%;background:#16a34a;display:inline-block;"></span>
+            </div>
+        </div>
+
+        <!-- ── FILTRES ── -->
+        <div class="filter-bar" id="filter-bar">
+            <button class="filter-btn active" data-filter="all">
+                Toutes <span class="count-badge" id="cnt-all">0</span>
+            </button>
+            <button class="filter-btn" data-filter="pending">
+                En attente <span class="count-badge" id="cnt-pending" style="background:#f59e0b;">0</span>
+            </button>
+            <button class="filter-btn" data-filter="accepted">
+                Acceptées <span class="count-badge" id="cnt-accepted" style="background:#3b82f6;">0</span>
+            </button>
+            <button class="filter-btn" data-filter="correcting">
+                Correction <span class="count-badge" id="cnt-correcting" style="background:#7c3aed;">0</span>
+            </button>
+            <button class="filter-btn" data-filter="rejected">
+                Rejetées <span class="count-badge" id="cnt-rejected" style="background:#6b7280;">0</span>
+            </button>
+            <button class="filter-btn" data-filter="new">
+                Alertes nouvelles <span class="count-badge" id="cnt-new" style="background:#1d4ed8;">0</span>
+            </button>
+            <button class="filter-btn" data-filter="acknowledged">
+                En charge <span class="count-badge" id="cnt-ack" style="background:#065f46;">0</span>
+            </button>
+            <button class="filter-btn" data-filter="closed">
+                Fermées <span class="count-badge" id="cnt-closed" style="background:#374151;">0</span>
+            </button>
+        </div>
+
+        <!-- ── TABLE UNIFIÉE ── -->
+        <div class="card">
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0" style="font-size:13px;">
+                    <thead style="background:#f8fafc;">
+                        <tr>
+                            <th style="width:40px;">ID</th>
+                            <th style="width:90px;">Niveau</th>
+                            <th style="width:80px;">Caméra</th>
+                            <th style="width:150px;">Localisation</th>
+                            <th>Description</th>
+                            <th style="width:120px;">Date</th>
+                            <th style="width:110px;">Statut</th>
+                            <th style="width:130px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="alerts-tbody">
+                        <tr><td colspan="7" class="text-center text-muted py-4">Chargement...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<!-- ── MODAL TRAITEMENT RISK EVENT (pending) ── -->
+<div class="modal fade" id="riskModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title"><i class="bi bi-shield-exclamation text-danger me-2"></i>Traitement du risque</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="risk-id">
+                <div class="mb-3 p-3 rounded" style="background:#f8f9fa;">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="risk-badge" id="risk-level-badge"></span>
+                        <span style="font-size:12px;color:#6b7280;" id="risk-cam-label"></span>
+                    </div>
+                    <div id="risk-messages"></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Commentaire <span class="text-danger">*</span></label>
+                    <textarea id="risk-comment" class="form-control" rows="3" placeholder="Décrivez votre décision..."></textarea>
+                    <div class="invalid-feedback">Le commentaire est obligatoire.</div>
+                </div>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-success" onclick="submitRisk('accepted')">
+                        <i class="bi bi-check-circle me-2"></i>Confirmer — Créer une alerte
+                    </button>
+                    <button class="btn btn-warning text-dark" onclick="submitRisk('correcting')">
+                        <i class="bi bi-tools me-2"></i>Correction en cours
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="submitRisk('rejected')">
+                        <i class="bi bi-x-circle me-2"></i>Rejeter — Fausse alarme
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── MODAL TRAITEMENT ALERTE (new/acknowledged) ── -->
+<div class="modal fade" id="alertModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title" id="alert-modal-title"><i class="bi bi-bell me-2"></i>Traitement</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="alert-id">
+                <input type="hidden" id="alert-action">
+                <div class="mb-3 p-3 rounded" style="background:#f8f9fa;">
+                    <span class="risk-badge" id="alert-level-badge"></span>
+                    <p class="mb-0 mt-2" style="font-size:13px;" id="alert-desc"></p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Commentaire <span class="text-danger">*</span></label>
+                    <textarea id="alert-comment" class="form-control" rows="3" placeholder="Décrivez votre action..."></textarea>
+                    <div class="invalid-feedback">Le commentaire est obligatoire.</div>
+                </div>
+                <button class="btn w-100" id="alert-submit-btn" onclick="submitAlert()">Confirmer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+var currentFilter = 'all';
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function strVal(v) {
+    if (!v) return '';
+    if (typeof v === 'string') return v;
+    if (typeof v === 'object' && v.String !== undefined) return v.Valid ? v.String : '';
+    return String(v);
+}
+function levelClass(lvl) {
+    var l = (lvl || '').toUpperCase();
+    if (l.indexOf('CRIT') !== -1) return 'CRITIQUE';
+    if (l.indexOf('ELEV') !== -1 || l.indexOf('HIGH') !== -1) return 'ELEVE';
+    if (l.indexOf('MOY') !== -1  || l.indexOf('MED') !== -1)  return 'MOYEN';
+    return 'FAIBLE';
+}
+function fmtTime(ts) {
+    if (!ts) return '';
+    var d = new Date(ts);
+    return (d.getMonth()+1).toString().padStart(2,'0') + '-'
+         + d.getDate().toString().padStart(2,'0') + ' '
+         + d.getHours().toString().padStart(2,'0') + ' h '
+         + d.getMinutes().toString().padStart(2,'0');
+}
+function statusLabel(s) {
+    var labels = { pending:'En attente', accepted:'Accepté', correcting:'Correction', rejected:'Rejeté', new:'Nouvelle', acknowledged:'En charge', closed:'Fermée' };
+    return labels[s] || s;
+}
+
+// ── Chargement unifié ─────────────────────────────────────────────────────────
+async function loadAll() {
+    var rows = [];
+
+    // 1. Risk events pending
+    try {
+        var r1 = await fetch('/api/pending-locations');
+        var events = await r1.json();
+        if (!events || !Array.isArray(events)) events = [];
+        events.forEach(function(e) {
+            rows.push({ source: 'risk', id: e.risk_event_id || e.id, level: strVal(e.risk_level),
+                cam: strVal(e.camera_name) || ('Cam ' + e.camera_id),
+                desc: strVal(e.risk_messages) || strVal(e.explanation) || strVal(e.risk_msg),
+                date: e.created_at, status: 'pending',
+                site: strVal(e.site_name) || '—',
+                plan: strVal(e.plan_level) || '—',
+                zone: strVal(e.zone_name) || '—' });
+        });
+    } catch(e) {}
+
+    // 2. Alertes validées
+    try {
+        var r2 = await fetch('/api/alerts');
+        var alerts = await r2.json();
+        if (!alerts || !Array.isArray(alerts)) alerts = [];
+        alerts.forEach(function(a) {
+            rows.push({ source: 'alert', id: a.id, level: strVal(a.alert_level),
+                cam: strVal(a.camera_name) || '',
+                desc: strVal(a.explanation),
+                date: a.sent_at, status: strVal(a.status) || 'new',
+                site: '—', plan: '—', zone: strVal(a.zone_name) || '—' });
+        });
+    } catch(e) {}
+
+    // Mettre à jour les compteurs
+    var counts = { all: rows.length, pending:0, accepted:0, correcting:0, rejected:0, new:0, acknowledged:0, closed:0 };
+    rows.forEach(function(r) { if (counts[r.status] !== undefined) counts[r.status]++; });
+    Object.keys(counts).forEach(function(k) {
+        var el = document.getElementById('cnt-' + (k === 'acknowledged' ? 'ack' : k));
+        if (el) el.textContent = counts[k];
+    });
+
+    // Filtrer
+    var filtered = currentFilter === 'all' ? rows : rows.filter(function(r) { return r.status === currentFilter; });
+
+    // Rendre le tableau
+    var tbody = document.getElementById('alerts-tbody');
+    if (!filtered.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Aucune alerte pour ce filtre</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(function(r) {
+        var lvl  = levelClass(r.level);
+        var msgs = (r.desc || '').split('|').map(function(m){ return m.trim(); }).filter(Boolean);
+        var descHtml = msgs.map(function(m){ return '<span>' + m + '</span>'; }).join('');
+
+        // Badge statut
+        var statusDot = r.status === 'pending' ? '<span class="pending-dot"></span>' : '';
+        var statusBadge = statusDot + '<span class="risk-badge badge-' + r.status + '">' + statusLabel(r.status) + '</span>';
+
+        // Boutons d'action avec data-attributes (pas de onclick inline)
+        var actions = '';
+        if (r.source === 'risk' && r.status === 'pending') {
+            actions = '<button class="btn btn-sm btn-primary btn-traiter"'
+                    + ' data-id="' + r.id + '"'
+                    + ' data-level="' + r.level + '"'
+                    + ' data-cam="' + r.cam.replace(/"/g, '') + '"'
+                    + ' data-msgs="' + (r.desc||'').replace(/"/g, '').substring(0,200) + '">'
+                    + '<i class="bi bi-shield-check"></i> Traiter</button>';
+        } else if (r.source === 'alert') {
+            if (r.status === 'new') {
+                actions += '<button class="btn btn-sm btn-warning me-1 btn-alert"'
+                         + ' data-id="' + r.id + '" data-action="acknowledge"'
+                         + ' data-level="' + r.level + '" title="Prendre en charge">'
+                         + '<i class="bi bi-hand-index"></i></button>';
+            }
+            if (r.status === 'acknowledged') {
+                actions += '<button class="btn btn-sm btn-success me-1 btn-alert"'
+                         + ' data-id="' + r.id + '" data-action="resolve"'
+                         + ' data-level="' + r.level + '" title="Résolu">'
+                         + '<i class="bi bi-check-circle"></i></button>';
+            }
+            if (r.status !== 'closed') {
+                actions += '<button class="btn btn-sm btn-outline-secondary btn-alert"'
+                         + ' data-id="' + r.id + '" data-action="close"'
+                         + ' data-level="' + r.level + '" title="Fermer">'
+                         + '<i class="bi bi-x-circle"></i></button>';
+            }
+        }
+        var locationHtml = '<div style="font-size:11px;line-height:1.6;">'
+                        + '<div><i class="bi bi-building" style="color:#6b7280;"></i> ' + (r.site || '—') + '</div>'
+                        + '<div><i class="bi bi-layers" style="color:#6b7280;"></i> ' + (r.plan || '—') + '</div>'
+                        + (r.zone && r.zone !== '—' ? '<div><i class="bi bi-geo-alt" style="color:#dc2626;"></i> ' + r.zone + '</div>' : '')
+                        + '</div>';
+
+        return '<tr data-status="' + r.status + '">'
+             + '<td class="text-muted">#' + r.id + '</td>'
+             + '<td><span class="risk-badge badge-' + lvl + '">' + r.level + '</span></td>'
+             + '<td style="font-size:12px;">' + r.cam + '</td>'
+             + '<td>' + locationHtml + '</td>'
+             + '<td class="msg-cell">' + descHtml + '</td>'
+             + '<td style="font-size:12px;white-space:nowrap;">' + fmtTime(r.date) + '</td>'
+             + '<td>' + statusBadge + '</td>'
+             + '<td>' + actions + '</td>'
+             + '</tr>';
+    }).join('');
+}
+
+// ── Modal Risk Event ──────────────────────────────────────────────────────────
+function openRiskModal(id, level, cam, msgs) {
+    document.getElementById('risk-id').value = id;
+    document.getElementById('risk-comment').value = '';
+    document.getElementById('risk-comment').classList.remove('is-invalid');
+    var lvl = levelClass(level);
+    document.getElementById('risk-level-badge').textContent = level;
+    document.getElementById('risk-level-badge').className = 'risk-badge badge-' + lvl;
+    document.getElementById('risk-cam-label').innerHTML = '<i class="bi bi-camera-video me-1"></i>' + cam;
+    document.getElementById('risk-messages').innerHTML = msgs.map(function(m){ return '<div style="font-size:13px;color:#374151;">• ' + m + '</div>'; }).join('');
+    new bootstrap.Modal(document.getElementById('riskModal')).show();
+}
+
+async function submitRisk(action) {
+    var id      = document.getElementById('risk-id').value;
+    var comment = document.getElementById('risk-comment').value.trim();
+    if (!comment) { document.getElementById('risk-comment').classList.add('is-invalid'); return; }
+
+    var endpoint = action === 'rejected' ? '/api/risk-events/' + id + '/reject' : '/api/risk-events/' + id + '/accept';
+    await fetch(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ comment: comment, action: action }) });
+
+    bootstrap.Modal.getInstance(document.getElementById('riskModal')).hide();
+    loadAll();
+}
+
+// ── Modal Alerte ──────────────────────────────────────────────────────────────
+function openAlertModal(id, action, level, desc) {
+    var titles   = { acknowledge:'Prendre en charge', resolve:'Marquer résolu', close:'Fermer' };
+    var btnClass = { acknowledge:'btn-warning', resolve:'btn-success', close:'btn-outline-secondary' };
+
+    document.getElementById('alert-id').value     = id;
+    document.getElementById('alert-action').value = action;
+    document.getElementById('alert-comment').value = '';
+    document.getElementById('alert-comment').classList.remove('is-invalid');
+    document.getElementById('alert-modal-title').innerHTML = '<i class="bi bi-bell me-2"></i>' + (titles[action] || action);
+    document.getElementById('alert-level-badge').textContent = level;
+    document.getElementById('alert-level-badge').className = 'risk-badge badge-' + levelClass(level);
+    document.getElementById('alert-desc').textContent = desc;
+    var btn = document.getElementById('alert-submit-btn');
+    btn.className = 'btn w-100 ' + (btnClass[action] || 'btn-primary');
+    btn.textContent = titles[action] || 'Confirmer';
+    new bootstrap.Modal(document.getElementById('alertModal')).show();
+}
+
+async function submitAlert() {
+    var id      = document.getElementById('alert-id').value;
+    var action  = document.getElementById('alert-action').value;
+    var comment = document.getElementById('alert-comment').value.trim();
+    if (!comment) { document.getElementById('alert-comment').classList.add('is-invalid'); return; }
+
+    var endpoints = { acknowledge:'/api/alerts/' + id + '/acknowledge', resolve:'/api/alerts/' + id + '/resolve', close:'/api/alerts/' + id + '/close' };
+    await fetch(endpoints[action], { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ comment: comment }) });
+
+    bootstrap.Modal.getInstance(document.getElementById('alertModal')).hide();
+    loadAll();
+}
+
+// ── Filtres ───────────────────────────────────────────────────────────────────
+document.querySelectorAll('.filter-btn').forEach(function(btn) {
+    btn.onclick = function() {
+        document.querySelectorAll('.filter-btn').forEach(function(b){ b.classList.remove('active'); });
+        btn.classList.add('active');
+        currentFilter = btn.dataset.filter;
+        loadAll();
+    };
+});
+
+// ── Event delegation (fonctionne même après re-render du tbody) ──────────────
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('button');
+    if (!btn) return;
+
+    if (btn.classList.contains('btn-traiter')) {
+        var id    = btn.getAttribute('data-id');
+        var level = btn.getAttribute('data-level');
+        var cam   = btn.getAttribute('data-cam') || '';
+        var raw   = btn.getAttribute('data-msgs') || '';
+        var msgs  = raw.split('|').map(function(m){ return m.trim(); }).filter(Boolean);
+        openRiskModal(id, level, cam, msgs);
+        return;
+    }
+
+    if (btn.classList.contains('btn-alert')) {
+        var id     = btn.getAttribute('data-id');
+        var action = btn.getAttribute('data-action');
+        var level  = btn.getAttribute('data-level');
+        openAlertModal(id, action, level, '');
+        return;
+    }
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadAll();
+setInterval(loadAll, 5000);
+</script>
+</body>
+</html>
+{{end}}

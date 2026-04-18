@@ -349,31 +349,38 @@
         <div class="main-content">
             <!-- Stats Row -->
             <div class="stats-row">
-                <div class="stat-card">
+                <div class="stat-card" onclick="window.location='/alertes'" style="cursor:pointer;">
                     <div class="stat-icon alerts"><i class="bi bi-exclamation-triangle"></i></div>
                     <div>
-                        <div class="stat-value">{{.ActiveAlerts}}</div>
+                        <div class="stat-value" id="stat-alerts">{{.ActiveAlerts}}</div>
                         <div class="stat-label">Alertes actives</div>
+                    </div>
+                </div>
+                <div class="stat-card" onclick="window.location='/alertes'" style="cursor:pointer;border-left:3px solid #dc2626;">
+                    <div class="stat-icon alerts" style="background:#fee2e2;"><i class="bi bi-shield-exclamation"></i></div>
+                    <div>
+                        <div class="stat-value" id="stat-pending" style="color:#dc2626;">—</div>
+                        <div class="stat-label">En attente validation</div>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon cameras"><i class="bi bi-camera-video"></i></div>
                     <div>
-                        <div class="stat-value">{{.TotalCameras}}</div>
+                        <div class="stat-value" id="stat-cameras">{{.TotalCameras}}</div>
                         <div class="stat-label">Caméras</div>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon zones"><i class="bi bi-exclamation-octagon"></i></div>
                     <div>
-                        <div class="stat-value">{{.HighRiskZones}}</div>
+                        <div class="stat-value" id="stat-zones">{{.HighRiskZones}}</div>
                         <div class="stat-label">Zones à risque élevé</div>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon detections"><i class="bi bi-eye"></i></div>
                     <div>
-                        <div class="stat-value">{{.DetectionsToday}}</div>
+                        <div class="stat-value" id="stat-detections">{{.DetectionsToday}}</div>
                         <div class="stat-label">Détections aujourd'hui</div>
                     </div>
                 </div>
@@ -714,27 +721,50 @@
             .catch(err => console.error('Error loading plan:', err));
     }
     
+    // Helpers pour extraire les valeurs des champs *string Go sérialisés en JSON
+    function strVal(v) {
+        if (v === null || v === undefined) return '';
+        if (typeof v === 'string') return v;
+        if (typeof v === 'object' && v.String !== undefined) return v.Valid ? v.String : '';
+        return String(v);
+    }
+    function intVal(v) {
+        if (v === null || v === undefined) return 0;
+        if (typeof v === 'number') return v;
+        if (typeof v === 'object' && v.Int64 !== undefined) return v.Valid ? v.Int64 : 0;
+        return parseInt(v) || 0;
+    }
+    function floatVal(v) {
+        if (v === null || v === undefined) return 0;
+        if (typeof v === 'number') return v;
+        if (typeof v === 'object' && v.Float64 !== undefined) return v.Valid ? v.Float64 : 0;
+        return parseFloat(v) || 0;
+    }
+
     function drawZones(zones) {
         const g = document.getElementById('plan-zones');
         g.innerHTML = '';
         
         zones.forEach(zone => {
             try {
-                const points = JSON.parse(zone.polygon || '[]');
+                const polygonRaw = strVal(zone.polygon) || '[]';
+                const points = JSON.parse(polygonRaw);
                 if (!points.length) return;
                 
-                const color = zone.risk_level === 'HIGH' ? '#ef4444' :
-                              zone.risk_level === 'MEDIUM' ? '#f59e0b' : '#22c55e';
+                const riskLevel = strVal(zone.risk_level);
+                const color = riskLevel === 'HIGH' ? '#ef4444' :
+                              riskLevel === 'MEDIUM' ? '#f59e0b' : '#22c55e';
                 
                 const path = points.map((p, i) => (i === 0 ? 'M' : 'L') + p[0] + ',' + p[1]).join(' ') + ' Z';
+                const zoneName = strVal(zone.name);
                 
                 g.innerHTML += `
                     <g class="zone-group" data-zone-id="${zone.id}">
                         <path d="${path}" fill="${color}" fill-opacity="0.3" stroke="${color}" stroke-width="2"/>
-                        <text x="${points[0][0] + 10}" y="${points[0][1] + 20}" fill="${color}" font-size="12" font-weight="bold">${zone.name || ''}</text>
+                        <text x="${points[0][0] + 10}" y="${points[0][1] + 20}" fill="${color}" font-size="12" font-weight="bold">${zoneName}</text>
                     </g>
                 `;
-            } catch (e) { console.error('Zone parse error:', e); }
+            } catch (e) { console.error('Zone parse error:', e, zone); }
         });
     }
     
@@ -758,19 +788,21 @@
         g.innerHTML = '';
         
         cameras.forEach(cam => {
-            const x = cam.x_plan || 50;
-            const y = cam.y_plan || 50;
-            const isWebcam = cam.stream_url === 'webcam:local' || cam.is_webcam === 1;
+            const x = floatVal(cam.x_plan) || 50;
+            const y = floatVal(cam.y_plan) || 50;
+            const streamUrl = strVal(cam.stream_url);
+            const camNameRaw = strVal(cam.name);
+            const isWebcam = streamUrl === 'webcam:local' || intVal(cam.is_webcam) === 1;
             const baseColor = isWebcam ? '#7c3aed' : '#2563eb';
             
             // Check if this camera has an active alert
-            const alert = currentAlerts.find(a => a.camera_id === cam.id);
+            const alert = currentAlerts.find(a => intVal(a.camera_id) === cam.id);
             const hasAlert = !!alert;
-            const alertLevel = alert?.alert_level || 'LOW';
+            const alertLevel = alert ? strVal(alert.alert_level) : 'LOW';
             
             // Camera coverage zone (FOV cone)
-            const fov = cam.fov || 90;
-            const orientation = cam.orientation || 0;
+            const fov = floatVal(cam.fov) || 90;
+            const orientation = floatVal(cam.orientation) || 0;
             const range = 80;
             const startAngle = (orientation - fov/2) * Math.PI / 180;
             const endAngle = (orientation + fov/2) * Math.PI / 180;
@@ -783,9 +815,9 @@
             
             let coverageColor, coverageStroke, coverageOpacity;
             if (hasAlert) {
-                if (alertLevel === 'HIGH') {
+                if (alertLevel === 'HIGH' || alertLevel === 'CRITIQUE') {
                     coverageColor = '#ef4444'; coverageStroke = '#dc2626'; coverageOpacity = 0.5;
-                } else if (alertLevel === 'MEDIUM') {
+                } else if (alertLevel === 'MEDIUM' || alertLevel === 'ELEVE') {
                     coverageColor = '#f59e0b'; coverageStroke = '#d97706'; coverageOpacity = 0.4;
                 } else {
                     coverageColor = '#22c55e'; coverageStroke = '#16a34a'; coverageOpacity = 0.3;
@@ -795,7 +827,7 @@
             }
             
             const coveragePath = `M ${x},${y} L ${x1},${y1} A ${range},${range} 0 ${largeArc},1 ${x2},${y2} Z`;
-            const camName = (cam.name || '').replace(/'/g, "\\'");
+            const camName = camNameRaw.replace(/'/g, "\\'");
             
             let html = `<g class="camera-group" data-camera-id="${cam.id}" data-webcam="${isWebcam}">`;
             html += `<path d="${coveragePath}" fill="${coverageColor}" fill-opacity="${coverageOpacity}" stroke="${coverageStroke}" stroke-width="${hasAlert ? 2 : 1}" stroke-opacity="${hasAlert ? 0.8 : 0.3}" class="camera-coverage ${hasAlert ? 'has-alert' : ''}"/>`;
@@ -805,7 +837,7 @@
             if (hasAlert) {
                 html += `<circle cx="${x}" cy="${y}" r="18" fill="none" stroke="${coverageColor}" stroke-width="2" opacity="0.6"><animate attributeName="r" from="18" to="30" dur="1.5s" repeatCount="indefinite"/><animate attributeName="opacity" from="0.6" to="0" dur="1.5s" repeatCount="indefinite"/></circle>`;
             }
-            html += `<text x="${x}" y="${y + 28}" text-anchor="middle" fill="#1e293b" font-size="9" font-weight="600">${cam.name || ''}</text>`;
+            html += `<text x="${x}" y="${y + 28}" text-anchor="middle" fill="#1e293b" font-size="9" font-weight="600">${camNameRaw}</text>`;
             if (hasAlert) {
                 html += `<text x="${x}" y="${y + 40}" text-anchor="middle" fill="${coverageColor}" font-size="8" font-weight="bold">⚠ ALERTE</text>`;
             }
@@ -816,7 +848,7 @@
     }
     
     function updateZoneTypes(zones) {
-        const types = [...new Set(zones.map(z => z.type).filter(Boolean))];
+        const types = [...new Set(zones.map(z => strVal(z.type)).filter(Boolean))];
         const list = document.getElementById('zone-types-list');
         
         if (types.length === 0) {
@@ -832,97 +864,104 @@
         `).join('');
     }
     
-    function loadCameraPreviews(cameras) {
-        const grid = document.getElementById('camera-preview-grid');
-        grid.innerHTML = '';
-        
-        cameras.slice(0, 6).forEach(cam => {
-            const isWebcam = cam.stream_url === 'webcam:local' || cam.is_webcam === 1;
-            grid.innerHTML += `
-                <div class="camera-thumb" onclick="openCamera(${cam.id}, ${isWebcam}, '${cam.name || 'Caméra'}')">
-                    <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #64748b;">
-                        <i class="bi bi-${isWebcam ? 'webcam' : 'camera-video'} fs-3"></i>
-                    </div>
-                    <div class="camera-thumb-status"></div>
-                    ${isWebcam ? '<div class="camera-thumb-webcam">Webcam</div>' : ''}
-                    <div class="camera-thumb-label">${cam.name || 'Caméra ' + cam.id}</div>
-                </div>
-            `;
-        });
+// ── Remplacer la fonction openCamera dans dashboard.html ─────────────────────
+// Cherche "function openCamera" et remplace tout le bloc par ceci :
+
+function openCamera(id, isWebcam, name) {
+    document.getElementById('camera-modal-name').textContent = name;
+
+    const alert = currentAlerts.find(a => intVal(a.camera_id) === id);
+    if (alert) {
+        const levelColor = strVal(alert.alert_level) === 'HIGH' ? 'danger' :
+                           strVal(alert.alert_level) === 'MEDIUM' ? 'warning' : 'success';
+        document.getElementById('camera-modal-status').innerHTML =
+            `<span class="badge bg-${levelColor}">Alerte ${strVal(alert.alert_level)}</span>`;
+    } else {
+        document.getElementById('camera-modal-status').textContent =
+            isWebcam ? 'Webcam locale' : 'Flux RTSP';
     }
-    
-    // Camera modal
-    let currentStream = null;
-    
-    function openCamera(id, isWebcam, name) {
-        document.getElementById('camera-modal-name').textContent = name;
-        
-        // Check if camera has active alert
-        const alert = currentAlerts.find(a => a.camera_id === id);
-        let alertBtn = '';
-        if (alert) {
-            const levelColor = alert.alert_level === 'HIGH' ? 'danger' : alert.alert_level === 'MEDIUM' ? 'warning' : 'success';
-            alertBtn = `
-                <button class="btn btn-${levelColor} mt-3" onclick="bootstrap.Modal.getInstance(document.getElementById('cameraModal')).hide(); openAlertModal(${alert.id}, '${name}', '${alert.alert_level}', '${alert.status}')">
-                    <i class="bi bi-exclamation-triangle"></i> Modifier l'alerte (${alert.alert_level})
-                </button>
-            `;
-            document.getElementById('camera-modal-status').innerHTML = `<span class="badge bg-${levelColor}"><i class="bi bi-exclamation-triangle"></i> Alerte ${alert.alert_level}</span>`;
-        } else {
-            document.getElementById('camera-modal-status').textContent = isWebcam ? 'Webcam locale' : 'Flux RTSP';
-        }
-        
-        const modalBody = document.getElementById('camera-modal-body');
-        const video = document.getElementById('camera-video');
-        
-        if (isWebcam) {
-            video.style.display = 'block';
-            navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-                .then(stream => {
-                    currentStream = stream;
-                    video.srcObject = stream;
-                })
-                .catch(err => {
-                    modalBody.innerHTML = `
-                        <div class="text-center p-5 text-white">
-                            <i class="bi bi-exclamation-triangle fs-1 mb-3 d-block"></i>
-                            <p>Impossible d'acc\u00e9der \u00e0 la webcam</p>
-                            <small class="text-muted">${err.message}</small>
-                            <div class="camera-modal-info">
-                                <h5>${name}</h5>
-                                <small>Webcam locale</small>
-                                ${alertBtn}
-                            </div>
-                        </div>
-                    `;
-                });
-        } else {
-            video.style.display = 'none';
-            modalBody.innerHTML = `
-                <div class="text-center p-5 text-white">
-                    <i class="bi bi-broadcast fs-1 mb-3 d-block"></i>
-                    <p>Flux RTSP</p>
-                    <small class="text-muted">Les flux RTSP n\u00e9cessitent un serveur de streaming</small>
-                    <div class="camera-modal-info">
-                        <h5>${name}</h5>
-                        <small>Flux RTSP</small>
-                        ${alertBtn}
-                    </div>
-                </div>
-            `;
-        }
-        
-        new bootstrap.Modal(document.getElementById('cameraModal')).show();
+
+    const video = document.getElementById('camera-video');
+    const modalBody = document.getElementById('camera-modal-body');
+
+    // Arrêter tout stream précédent
+    if (currentStream) {
+        currentStream.getTracks().forEach(t => t.stop());
+        currentStream = null;
     }
-    
-    document.getElementById('cameraModal').addEventListener('hidden.bs.modal', () => {
-        if (currentStream) {
-            currentStream.getTracks().forEach(t => t.stop());
-            currentStream = null;
-        }
-        const video = document.getElementById('camera-video');
-        video.srcObject = null;
+    video.style.display = 'none';
+    video.srcObject = null;
+
+    // Utiliser le flux MJPEG servi par Go (capturé par Python)
+    // Fonctionne pour webcam ET caméras RTSP sans conflit
+    const streamImg = document.getElementById('camera-stream-img');
+    if (streamImg) streamImg.remove();
+
+    const img = document.createElement('img');
+    img.id = 'camera-stream-img';
+    img.style.cssText = 'width:100%;max-height:70vh;object-fit:contain;display:block;';
+    img.src = `/api/cameras/${id}/stream`;
+    img.onerror = () => {
+        // Si le stream n'est pas dispo (IA pas encore démarrée), fallback snapshot
+        img.src = `/api/cameras/${id}/snapshot`;
+        img.onerror = () => {
+            img.style.display = 'none';
+            modalBody.querySelector('.camera-modal-info').insertAdjacentHTML('beforebegin',
+                `<div class="text-center p-4 text-white">
+                    <i class="bi bi-camera-video-off fs-1 mb-2 d-block"></i>
+                    <p>Flux non disponible</p>
+                    <small class="text-muted">L'IA démarre ou la caméra est hors ligne</small>
+                </div>`
+            );
+        };
+    };
+    modalBody.insertBefore(img, modalBody.firstChild);
+
+    new bootstrap.Modal(document.getElementById('cameraModal')).show();
+}
+
+// ── Modifier aussi l'aperçu des caméras dans loadCameraPreviews ──────────────
+// Remplacer le contenu de la camera-thumb par un snapshot live :
+
+function loadCameraPreviews(cameras) {
+    const grid = document.getElementById('camera-preview-grid');
+    grid.innerHTML = '';
+    cameras.slice(0, 6).forEach(cam => {
+        const streamUrl = strVal(cam.stream_url);
+        const camName = strVal(cam.name) || 'Caméra';
+        const isWebcam = streamUrl === 'webcam:local' || intVal(cam.is_webcam) === 1;
+
+        grid.innerHTML += `
+            <div class="camera-thumb" onclick="openCamera(${cam.id}, ${isWebcam}, '${camName.replace(/'/g,"\\'")}')">
+                <img src="/api/cameras/${cam.id}/snapshot"
+                     style="width:100%;height:100%;object-fit:cover;"
+                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                <div style="display:none;align-items:center;justify-content:center;height:100%;color:#64748b;">
+                    <i class="bi bi-${isWebcam ? 'webcam' : 'camera-video'} fs-3"></i>
+                </div>
+                <div class="camera-thumb-status"></div>
+                ${isWebcam ? '<div class="camera-thumb-webcam">Webcam</div>' : ''}
+                <div class="camera-thumb-label">${camName}</div>
+            </div>`;
     });
+}
+
+// ── Nettoyer le stream quand le modal se ferme ────────────────────────────────
+// Remplacer le listener 'hidden.bs.modal' existant par :
+document.getElementById('cameraModal').addEventListener('hidden.bs.modal', () => {
+    if (currentStream) {
+        currentStream.getTracks().forEach(t => t.stop());
+        currentStream = null;
+    }
+    const img = document.getElementById('camera-stream-img');
+    if (img) {
+        img.src = '';  // Stopper le téléchargement MJPEG
+        img.remove();
+    }
+    const video = document.getElementById('camera-video');
+    video.srcObject = null;
+    video.style.display = 'none';
+});
     
     // Initialize
     // Alert sound management
@@ -1029,9 +1068,39 @@
         });
     }
     
+    // ── Polling stats toutes les 5s ─────────────────────────────────────────
+    async function refreshStats() {
+        try {
+            const res = await fetch('/api/stats');
+            if (!res.ok) return;
+            const d = await res.json();
+            const sa = document.getElementById('stat-alerts');
+            const sc = document.getElementById('stat-cameras');
+            const sz = document.getElementById('stat-zones');
+            const sd = document.getElementById('stat-detections');
+            if (sa) sa.textContent = d.active_alerts  ?? sa.textContent;
+            if (sc) sc.textContent = d.total_cameras   ?? sc.textContent;
+            if (sz) sz.textContent = d.high_risk_zones ?? sz.textContent;
+            if (sd) sd.textContent = d.detections_today ?? sd.textContent;
+        } catch(e) {}
+
+        try {
+            const res2 = await fetch('/api/risk-events/pending/count');
+            if (!res2.ok) return;
+            const d2 = await res2.json();
+            const sp = document.getElementById('stat-pending');
+            if (sp) {
+                sp.textContent = d2.count ?? 0;
+                sp.style.color = (d2.count > 0) ? '#dc2626' : '#1e293b';
+            }
+        } catch(e) {}
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         planViewer.init();
         loadChart('week');
+        refreshStats();
+        setInterval(refreshStats, 5000);
         
         // Load alerts first, then load plan
         fetch('/api/alerts/active')

@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e0e0e0" stroke-width="1"/>
+    </pattern>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="800" height="600" fill="#f8fafc"/>
+  <rect width="800" height="600" fill="url(#grid)"/>
+  
+  <!-- Building outline -->
+  <rect x="50" y="50" width="700" height="500" fill="none" stroke="#334155" stroke-width="3"/>
+  
+  <!-- Rooms -->
+  <rect x="50" y="50" width="200" height="200" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/>
+  <text x="150" y="150" text-anchor="middle" font-family="Arial" font-size="14" fill="#0369a1">Zone A</text>
+  
+  <rect x="250" y="50" width="250" height="200" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+  <text x="375" y="150" text-anchor="middle" font-family="Arial" font-size="14" fill="#b45309">Zone B</text>
+  
+  <rect x="500" y="50" width="250" height="200" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="625" y="150" text-anchor="middle" font-family="Arial" font-size="14" fill="#b91c1c">Zone C</text>
+  
+  <rect x="50" y="250" width="300" height="300" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="200" y="400" text-anchor="middle" font-family="Arial" font-size="14" fill="#15803d">Zone D</text>
+  
+  <rect x="350" y="250" width="400" height="150" fill="#f3e8ff" stroke="#9333ea" stroke-width="2"/>
+  <text x="550" y="325" text-anchor="middle" font-family="Arial" font-size="14" fill="#7e22ce">Zone E</text>
+  
+  <rect x="350" y="400" width="400" height="150" fill="#e0e7ff" stroke="#4f46e5" stroke-width="2"/>
+  <text x="550" y="475" text-anchor="middle" font-family="Arial" font-size="14" fill="#4338ca">Zone F</text>
+  
+  <!-- Scale -->
+  <line x1="650" y1="570" x2="750" y2="570" stroke="#334155" stroke-width="2"/>
+  <line x1="650" y1="565" x2="650" y2="575" stroke="#334155" stroke-width="2"/>
+  <line x1="750" y1="565" x2="750" y2="575" stroke="#334155" stroke-width="2"/>
+  <text x="700" y="585" text-anchor="middle" font-family="Arial" font-size="12" fill="#334155">10m</text>
+  
+  <!-- North arrow -->
+  <polygon points="70,580 80,560 90,580 80,575" fill="#334155"/>
+  <text x="80" y="595" text-anchor="middle" font-family="Arial" font-size="10" fill="#334155">N</text>
+</svg>

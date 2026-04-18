@@ -90,7 +90,7 @@ func (s *Server) siteViewFromDB(site *dbgen.Site) *SiteView {
 		return nil
 	}
 	return &SiteView{
-		ID:          site.ID,
+		ID:          int64(site.ID), // Conversion int32 -> int64
 		Name:        site.Name,
 		Location:    ptrStr(site.Location),
 		Description: ptrStr(site.Description),
@@ -118,7 +118,7 @@ func (s *Server) HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	var alertViews []AlertView
 	for _, a := range alerts {
 		alertViews = append(alertViews, AlertView{
-			ID:          a.ID,
+			ID:          int64(a.ID), // Conversion int32 -> int64
 			Level:       ptrStr(a.AlertLevel),
 			Status:      ptrStr(a.Status),
 			Explanation: ptrStr(a.Explanation),
@@ -132,7 +132,7 @@ func (s *Server) HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	var planViews []PlanView
 	for _, p := range plans {
 		planViews = append(planViews, PlanView{
-			ID:          p.ID,
+			ID:          int64(p.ID), // Conversion int32 -> int64
 			Level:       ptrStr(p.Level),
 			ImagePath:   ptrStr(p.ImagePath),
 			ScaleFactor: ptrFloat(p.ScaleFactor),
@@ -161,7 +161,7 @@ func (s *Server) HandleCameras(w http.ResponseWriter, r *http.Request) {
 	var views []CameraView
 	for _, c := range cameras {
 		views = append(views, CameraView{
-			ID:          c.ID,
+			ID:          int64(c.ID), // Conversion int32 -> int64
 			Name:        ptrStr(c.Name),
 			StreamURL:   ptrStr(c.StreamUrl),
 			PlanID:      ptrInt(c.PlanID),
@@ -185,7 +185,7 @@ func (s *Server) HandleAlerts(w http.ResponseWriter, r *http.Request) {
 	var views []AlertView
 	for _, a := range alerts {
 		views = append(views, AlertView{
-			ID:          a.ID,
+			ID:          int64(a.ID), // Conversion int32 -> int64
 			Level:       ptrStr(a.AlertLevel),
 			Status:      ptrStr(a.Status),
 			Explanation: ptrStr(a.Explanation),
@@ -210,8 +210,8 @@ func (s *Server) HandleZones(w http.ResponseWriter, r *http.Request) {
 	var views []ZoneView
 	for _, z := range zones {
 		views = append(views, ZoneView{
-			ID:        z.ID,
-			Name:      ptrStr(z.Name),
+			ID:        int64(z.ID),    // Conversion int32 -> int64
+			Name:      ptrStr(z.Name), // <--- Si ptrStr renvoie l'objet NullString,
 			Type:      ptrStr(z.Type),
 			Polygon:   z.Polygon,
 			RiskLevel: ptrStr(z.RiskLevel),
@@ -237,7 +237,16 @@ func (s *Server) HandleRapports(w http.ResponseWriter, r *http.Request) {
 	s.render(w, "rapports", map[string]any{"Site": s.siteViewFromDB(site)})
 }
 
-// Type alias for template use
-type dbgenSite = dbgen.Site
+func (s *Server) HandleValidation(w http.ResponseWriter, r *http.Request) {
+	site := s.getCurrentSite(r)
+	s.render(w, "validation", map[string]any{
+		"Site": s.siteViewFromDB(site),
+	})
+}
 
-var _ dbgenSite // silence unused warning
+func (s *Server) HandleSuivi(w http.ResponseWriter, r *http.Request) {
+	site := s.getCurrentSite(r)
+	s.render(w, "suivi", map[string]any{
+		"Site": s.siteViewFromDB(site),
+	})
+}

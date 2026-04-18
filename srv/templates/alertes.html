@@ -8,61 +8,257 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <link href="/static/style.css" rel="stylesheet">
+    <style>
+        .risk-card { border-left: 4px solid #dc3545; background: #fff; border-radius: 8px; padding: 16px 20px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+        .risk-card.ELEVE  { border-left-color: #fd7e14; }
+        .risk-card.MOYEN  { border-left-color: #ffc107; }
+        .risk-card.FAIBLE { border-left-color: #198754; }
+        .risk-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; }
+        .badge-CRITIQUE { background: #fee2e2; color: #dc2626; }
+        .badge-ELEVE    { background: #fff3cd; color: #b45309; }
+        .badge-MOYEN    { background: #fef9c3; color: #854d0e; }
+        .badge-FAIBLE   { background: #d1fae5; color: #065f46; }
+        .badge-new          { background: #dbeafe; color: #1d4ed8; }
+        .badge-acknowledged { background: #d1fae5; color: #065f46; }
+        .badge-closed       { background: #e5e7eb; color: #374151; }
+        .section-title { font-size: 13px; font-weight: 600; text-transform: uppercase; color: #6b7280; letter-spacing: .05em; margin: 24px 0 12px; }
+        .pending-count { display: inline-flex; align-items: center; justify-content: center; background: #dc2626; color: #fff; border-radius: 50%; width: 22px; height: 22px; font-size: 12px; font-weight: 700; margin-left: 8px; }
+        .msg-line { font-size: 13px; color: #374151; margin: 2px 0; }
+        .msg-line::before { content: "• "; color: #9ca3af; }
+        .cam-label { font-size: 12px; color: #6b7280; }
+    </style>
 </head>
 <body>
-    <div class="d-flex">
-        {{template "sidebar" .}}
-        <main class="main-content">
-            <h1 class="page-title"><i class="bi bi-exclamation-triangle"></i> Alertes</h1>
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <span>Liste des alertes</span>
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-primary active" data-filter="all">Toutes</button>
-                        <button class="btn btn-outline-danger" data-filter="new">Nouvelles</button>
-                        <button class="btn btn-outline-warning" data-filter="acknowledged">En cours</button>
-                        <button class="btn btn-outline-secondary" data-filter="closed">Fermées</button>
-                    </div>
-                </div>
-                <div class="card-body p-0">
-                    <table class="table table-hover">
-                        <thead><tr><th>ID</th><th>Niveau</th><th>Zone</th><th>Description</th><th>Date</th><th>Statut</th><th>Actions</th></tr></thead>
-                        <tbody>
-                            {{range .Alerts}}
-                            <tr data-status="{{.Status}}">
-                                <td>#{{.ID}}</td>
-                                <td><span class="badge badge-{{.Level}}">{{.Level}}</span></td>
-                                <td>{{.ZoneName}}</td>
-                                <td>{{.Explanation}}</td>
-                                <td>{{.SentAt}}</td>
-                                <td><span class="badge badge-{{.Status}}">{{.Status}}</span></td>
-                                <td>
-                                    {{if eq .Status "new"}}<button class="btn btn-sm btn-warning" onclick="ackAlert({{.ID}})"><i class="bi bi-check"></i></button>{{end}}
-                                    {{if ne .Status "closed"}}<button class="btn btn-sm btn-secondary" onclick="closeAlert({{.ID}})"><i class="bi bi-x"></i></button>{{end}}
-                                </td>
-                            </tr>
-                            {{else}}
-                            <tr><td colspan="7" class="text-center text-muted py-4">Aucune alerte</td></tr>
-                            {{end}}
-                        </tbody>
-                    </table>
+<div class="d-flex">
+    {{template "sidebar" .}}
+    <main class="main-content" style="padding: 24px;">
+
+        <h1 class="page-title"><i class="bi bi-exclamation-triangle"></i> Alertes</h1>
+
+        <!-- ── SECTION 1 : RISQUES EN ATTENTE DE VALIDATION ── -->
+        <div class="section-title">
+            Risques en attente de validation
+            <span class="pending-count" id="pending-count">0</span>
+        </div>
+        <div id="pending-list">
+            <div class="text-muted" style="font-size:14px;">Chargement...</div>
+        </div>
+
+        <!-- ── SECTION 2 : ALERTES VALIDÉES ── -->
+        <div class="section-title" style="margin-top: 36px;">Alertes actives (validées)</div>
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Historique des alertes</span>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary active" data-filter="all">Toutes</button>
+                    <button class="btn btn-outline-danger" data-filter="new">Nouvelles</button>
+                    <button class="btn btn-outline-warning" data-filter="acknowledged">En cours</button>
+                    <button class="btn btn-outline-secondary" data-filter="closed">Fermées</button>
                 </div>
             </div>
-        </main>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead><tr><th>ID</th><th>Niveau</th><th>Caméra</th><th>Description</th><th>Date</th><th>Statut</th><th>Actions</th></tr></thead>
+                    <tbody>
+                        {{range .Alerts}}
+                        <tr data-status="{{.Status}}">
+                            <td>#{{.ID}}</td>
+                            <td><span class="risk-badge badge-{{.Level}}">{{.Level}}</span></td>
+                            <td>{{.ZoneName}}</td>
+                            <td style="max-width:300px;font-size:13px;">{{.Explanation}}</td>
+                            <td style="font-size:13px;">{{.SentAt}}</td>
+                            <td><span class="risk-badge badge-{{.Status}}">{{.Status}}</span></td>
+                            <td>
+                                {{if eq .Status "new"}}<button class="btn btn-sm btn-warning me-1" onclick="ackAlert({{.ID}})"><i class="bi bi-check"></i> Prendre en charge</button>{{end}}
+                                {{if ne .Status "closed"}}<button class="btn btn-sm btn-outline-secondary" onclick="closeAlert({{.ID}})"><i class="bi bi-x"></i> Fermer</button>{{end}}
+                            </td>
+                        </tr>
+                        {{else}}
+                        <tr><td colspan="7" class="text-center text-muted py-4">Aucune alerte validée</td></tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<!-- ── MODAL DE VALIDATION ── -->
+<div class="modal fade" id="validationModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-shield-exclamation"></i> Traitement du risque</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="modal-event-id">
+
+                <div class="mb-3 p-3 rounded" style="background:#f8f9fa;">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="risk-badge" id="modal-level-badge">—</span>
+                        <span class="cam-label" id="modal-cam-label"></span>
+                    </div>
+                    <div id="modal-messages"></div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Commentaire <span class="text-danger">*</span></label>
+                    <textarea id="modal-comment" class="form-control" rows="3"
+                        placeholder="Décrivez votre décision (obligatoire)..."></textarea>
+                    <div class="invalid-feedback">Le commentaire est obligatoire.</div>
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label fw-semibold">Action</label>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-success" onclick="submitDecision('accepted')">
+                            <i class="bi bi-check-circle"></i> Accepter — Créer une alerte
+                        </button>
+                        <button class="btn btn-warning text-dark" onclick="submitDecision('correcting')">
+                            <i class="bi bi-tools"></i> Correction en cours — Risque pris en charge
+                        </button>
+                        <button class="btn btn-danger" onclick="submitDecision('rejected')">
+                            <i class="bi bi-x-circle"></i> Rejeter — Fausse alarme
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-    function ackAlert(id) { fetch('/api/alerts/'+id+'/acknowledge',{method:'POST'}).then(()=>location.reload()); }
-    function closeAlert(id) { fetch('/api/alerts/'+id+'/close',{method:'POST'}).then(()=>location.reload()); }
-    document.querySelectorAll('[data-filter]').forEach(btn => {
-        btn.onclick = () => {
-            document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            const f = btn.dataset.filter;
-            document.querySelectorAll('tbody tr').forEach(r => { r.style.display = (f==='all'||r.dataset.status===f)?'':'none'; });
-        };
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const POLL_MS = 10000;
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function strVal(v) {
+    if (!v) return '';
+    if (typeof v === 'string') return v;
+    if (typeof v === 'object' && v.String !== undefined) return v.Valid ? v.String : '';
+    return String(v);
+}
+function levelClass(lvl) {
+    const l = (lvl||'').toUpperCase();
+    if (l.includes('CRIT')) return 'CRITIQUE';
+    if (l.includes('ELEV') || l.includes('HIGH')) return 'ELEVE';
+    if (l.includes('MOY') || l.includes('MED')) return 'MOYEN';
+    return 'FAIBLE';
+}
+function fmtTime(ts) {
+    if (!ts) return '';
+    return new Date(ts).toLocaleString('fr-CA', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+
+// ── Pending risk events ───────────────────────────────────────────────────────
+async function loadPending() {
+    const res = await fetch('/api/risk-events/pending').catch(() => null);
+    if (!res || !res.ok) return;
+    const events = await res.json();
+    const badge = document.getElementById('pending-count');
+    badge.textContent = events.length;
+    badge.style.display = events.length ? 'inline-flex' : 'none';
+
+    const list = document.getElementById('pending-list');
+    if (!events.length) {
+        list.innerHTML = '<div class="text-muted" style="font-size:14px;padding:12px 0;">Aucun risque en attente ✓</div>';
+        return;
+    }
+
+    list.innerHTML = events.map(e => {
+        const lvl = levelClass(strVal(e.risk_level));
+        const msgs = (strVal(e.risk_messages)||strVal(e.explanation)||'').split('|').map(m=>m.trim()).filter(Boolean);
+        return `
+        <div class="risk-card ${lvl}" id="re-${e.id}">
+            <div class="d-flex justify-content-between align-items-start">
+                <div style="flex:1">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="risk-badge badge-${lvl}">${strVal(e.risk_level)||'—'}</span>
+                        <span class="cam-label"><i class="bi bi-camera-video"></i> ${strVal(e.camera_name)||'Cam '+e.camera_id}</span>
+                        <span class="cam-label text-muted">${fmtTime(e.created_at)}</span>
+                    </div>
+                    ${msgs.map(m=>`<div class="msg-line">${m}</div>`).join('')}
+                </div>
+                <button class="btn btn-sm btn-primary ms-3" onclick="openModal(${e.id}, '${strVal(e.risk_level)}', '${strVal(e.camera_name)}', ${JSON.stringify(msgs)})">
+                    <i class="bi bi-shield-check"></i> Traiter
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+function openModal(id, level, camName, msgs) {
+    document.getElementById('modal-event-id').value = id;
+    document.getElementById('modal-comment').value = '';
+    document.getElementById('modal-comment').classList.remove('is-invalid');
+
+    const lvl = levelClass(level);
+    const badge = document.getElementById('modal-level-badge');
+    badge.textContent = level;
+    badge.className = `risk-badge badge-${lvl}`;
+    document.getElementById('modal-cam-label').textContent = '📷 ' + camName;
+    document.getElementById('modal-messages').innerHTML = msgs.map(m=>`<div class="msg-line">${m}</div>`).join('');
+
+    new bootstrap.Modal(document.getElementById('validationModal')).show();
+}
+
+async function submitDecision(action) {
+    const id      = document.getElementById('modal-event-id').value;
+    const comment = document.getElementById('modal-comment').value.trim();
+
+    if (!comment) {
+        document.getElementById('modal-comment').classList.add('is-invalid');
+        return;
+    }
+
+    const endpoint = action === 'rejected'
+        ? `/api/risk-events/${id}/reject`
+        : `/api/risk-events/${id}/accept`;
+
+    await fetch(endpoint, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ comment: comment, action: action })
     });
-    </script>
+
+    // Fermer le modal
+    bootstrap.Modal.getInstance(document.getElementById('validationModal')).hide();
+
+    // Retirer immédiatement la carte
+    document.getElementById(`re-${id}`)?.remove();
+
+    // Recharger les deux sections
+    loadPending();
+    if (action !== 'rejected') setTimeout(() => location.reload(), 800);
+}
+
+// ── Alertes validées ──────────────────────────────────────────────────────────
+function ackAlert(id) {
+    fetch('/api/alerts/'+id+'/acknowledge', {method:'POST'}).then(() => location.reload());
+}
+function closeAlert(id) {
+    fetch('/api/alerts/'+id+'/close', {method:'POST'}).then(() => location.reload());
+}
+
+// ── Filtres ───────────────────────────────────────────────────────────────────
+document.querySelectorAll('[data-filter]').forEach(btn => {
+    btn.onclick = () => {
+        document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const f = btn.dataset.filter;
+        document.querySelectorAll('tbody tr').forEach(r => {
+            r.style.display = (f === 'all' || r.dataset.status === f) ? '' : 'none';
+        });
+    };
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadPending();
+setInterval(loadPending, POLL_MS);
+</script>
 </body>
 </html>
 {{end}}

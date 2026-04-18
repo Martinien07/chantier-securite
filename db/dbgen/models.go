@@ -5,191 +5,192 @@
 package dbgen
 
 import (
+	"database/sql"
 	"time"
 )
 
 type Activity struct {
-	ID         int64     `json:"id"`
-	WindowID   *int64    `json:"window_id"`
-	Label      *string   `json:"label"`
-	Confidence *float64  `json:"confidence"`
-	ModelID    *int64    `json:"model_id"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID         int32           `json:"id"`
+	WindowID   sql.NullInt32   `json:"window_id"`
+	Label      sql.NullString  `json:"label"`
+	Confidence sql.NullFloat64 `json:"confidence"`
+	ModelID    sql.NullInt32   `json:"model_id"`
+	CreatedAt  time.Time       `json:"created_at"`
 }
 
 type ActivityFeature struct {
-	WindowID     int64   `json:"window_id"`
-	FeaturesJson *string `json:"features_json"`
+	WindowID     int32          `json:"window_id"`
+	FeaturesJson sql.NullString `json:"features_json"`
 }
 
 type ActivityWindow struct {
-	ID        int64      `json:"id"`
-	CameraID  *int64     `json:"camera_id"`
-	StartTime time.Time  `json:"start_time"`
-	EndTime   *time.Time `json:"end_time"`
-	Duration  *int64     `json:"duration"`
+	ID        int32         `json:"id"`
+	CameraID  sql.NullInt32 `json:"camera_id"`
+	StartTime time.Time     `json:"start_time"`
+	EndTime   sql.NullTime  `json:"end_time"`
+	Duration  sql.NullInt32 `json:"duration"`
 }
 
 type Alert struct {
-	ID             int64      `json:"id"`
-	RiskEventID    *int64     `json:"risk_event_id"`
-	AlertLevel     *string    `json:"alert_level"`
-	Status         *string    `json:"status"`
-	SentAt         time.Time  `json:"sent_at"`
-	AcknowledgedAt *time.Time `json:"acknowledged_at"`
-	CameraID       *int64     `json:"camera_id"`
+	ID             int32          `json:"id"`
+	RiskEventID    sql.NullInt32  `json:"risk_event_id"`
+	AlertLevel     sql.NullString `json:"alert_level"`
+	Status         sql.NullString `json:"status"`
+	SentAt         time.Time      `json:"sent_at"`
+	AcknowledgedAt sql.NullTime   `json:"acknowledged_at"`
+	CameraID       sql.NullInt32  `json:"camera_id"`
 }
 
 type Camera struct {
-	ID                int64     `json:"id"`
-	PlanID            *int64    `json:"plan_id"`
-	Name              *string   `json:"name"`
-	StreamUrl         *string   `json:"stream_url"`
-	XPlan             *float64  `json:"x_plan"`
-	YPlan             *float64  `json:"y_plan"`
-	Orientation       *float64  `json:"orientation"`
-	Fov               *float64  `json:"fov"`
-	CalibrationMatrix *string   `json:"calibration_matrix"`
-	ConfidenceConfig  *string   `json:"confidence_config"`
-	IsWebcam          *int64    `json:"is_webcam"`
-	CreatedAt         time.Time `json:"created_at"`
+	ID                int32           `json:"id"`
+	PlanID            sql.NullInt32   `json:"plan_id"`
+	Name              sql.NullString  `json:"name"`
+	StreamUrl         sql.NullString  `json:"stream_url"`
+	XPlan             sql.NullFloat64 `json:"x_plan"`
+	YPlan             sql.NullFloat64 `json:"y_plan"`
+	Orientation       sql.NullFloat64 `json:"orientation"`
+	Fov               sql.NullFloat64 `json:"fov"`
+	CalibrationMatrix sql.NullString  `json:"calibration_matrix"`
+	ConfidenceConfig  sql.NullString  `json:"confidence_config"`
+	IsWebcam          sql.NullInt16   `json:"is_webcam"`
+	CreatedAt         time.Time       `json:"created_at"`
 }
 
 type CameraCalibration struct {
-	ID                int64     `json:"id"`
-	CameraID          int64     `json:"camera_id"`
-	PlanID            int64     `json:"plan_id"`
-	PtsImage          string    `json:"pts_image"`
-	PtsPlan           string    `json:"pts_plan"`
-	Homography        string    `json:"homography"`
-	ReprojectionError *float64  `json:"reprojection_error"`
-	IsActive          *int64    `json:"is_active"`
-	CreatedAt         time.Time `json:"created_at"`
+	ID                int32           `json:"id"`
+	CameraID          int32           `json:"camera_id"`
+	PlanID            int32           `json:"plan_id"`
+	PtsImage          string          `json:"pts_image"`
+	PtsPlan           string          `json:"pts_plan"`
+	Homography        string          `json:"homography"`
+	ReprojectionError sql.NullFloat64 `json:"reprojection_error"`
+	IsActive          sql.NullInt16   `json:"is_active"`
+	CreatedAt         time.Time       `json:"created_at"`
 }
 
 type Detection struct {
-	ID          int64     `json:"id"`
-	CameraID    *int64    `json:"camera_id"`
-	Timestamp   time.Time `json:"timestamp"`
-	ObjectClass *string   `json:"object_class"`
-	Confidence  *float64  `json:"confidence"`
-	BboxX       *float64  `json:"bbox_x"`
-	BboxY       *float64  `json:"bbox_y"`
-	BboxW       *float64  `json:"bbox_w"`
-	BboxH       *float64  `json:"bbox_h"`
-	TrackID     *int64    `json:"track_id"`
+	ID          int32           `json:"id"`
+	CameraID    sql.NullInt32   `json:"camera_id"`
+	Timestamp   time.Time       `json:"timestamp"`
+	ObjectClass sql.NullString  `json:"object_class"`
+	Confidence  sql.NullFloat64 `json:"confidence"`
+	BboxX       sql.NullFloat64 `json:"bbox_x"`
+	BboxY       sql.NullFloat64 `json:"bbox_y"`
+	BboxW       sql.NullFloat64 `json:"bbox_w"`
+	BboxH       sql.NullFloat64 `json:"bbox_h"`
+	TrackID     sql.NullInt32   `json:"track_id"`
 }
 
 type HseRule struct {
-	ID             int64   `json:"id"`
-	Name           *string `json:"name"`
-	Description    *string `json:"description"`
-	ConditionLogic *string `json:"condition_logic"`
-	Severity       *int64  `json:"severity"`
-	IsActive       *int64  `json:"is_active"`
+	ID             int32          `json:"id"`
+	Name           sql.NullString `json:"name"`
+	Description    sql.NullString `json:"description"`
+	ConditionLogic sql.NullString `json:"condition_logic"`
+	Severity       sql.NullInt32  `json:"severity"`
+	IsActive       sql.NullInt16  `json:"is_active"`
 }
 
 type HumanDecision struct {
-	ID        int64     `json:"id"`
-	AlertID   *int64    `json:"alert_id"`
-	UserID    *int64    `json:"user_id"`
-	Action    *string   `json:"action"`
-	Comment   *string   `json:"comment"`
-	CreatedAt time.Time `json:"created_at"`
+	ID        int32          `json:"id"`
+	AlertID   sql.NullInt32  `json:"alert_id"`
+	UserID    sql.NullInt32  `json:"user_id"`
+	Action    sql.NullString `json:"action"`
+	Comment   sql.NullString `json:"comment"`
+	CreatedAt time.Time      `json:"created_at"`
 }
 
 type IncidentReview struct {
-	ID              int64     `json:"id"`
-	AlertID         *int64    `json:"alert_id"`
-	ReviewerID      *int64    `json:"reviewer_id"`
-	Comment         *string   `json:"comment"`
-	DecisionSummary *string   `json:"decision_summary"`
-	CreatedAt       time.Time `json:"created_at"`
+	ID              int32          `json:"id"`
+	AlertID         sql.NullInt32  `json:"alert_id"`
+	ReviewerID      sql.NullInt32  `json:"reviewer_id"`
+	Comment         sql.NullString `json:"comment"`
+	DecisionSummary sql.NullString `json:"decision_summary"`
+	CreatedAt       time.Time      `json:"created_at"`
 }
 
 type Migration struct {
-	MigrationNumber int64     `json:"migration_number"`
+	MigrationNumber int32     `json:"migration_number"`
 	MigrationName   string    `json:"migration_name"`
 	ExecutedAt      time.Time `json:"executed_at"`
 }
 
 type Model struct {
-	ID        int64      `json:"id"`
-	Name      *string    `json:"name"`
-	Type      *string    `json:"type"`
-	Version   *string    `json:"version"`
-	TrainedAt *time.Time `json:"trained_at"`
-	Metrics   *string    `json:"metrics"`
-	IsActive  *int64     `json:"is_active"`
+	ID        int32          `json:"id"`
+	Name      sql.NullString `json:"name"`
+	Type      sql.NullString `json:"type"`
+	Version   sql.NullString `json:"version"`
+	TrainedAt sql.NullTime   `json:"trained_at"`
+	Metrics   sql.NullString `json:"metrics"`
+	IsActive  sql.NullInt16  `json:"is_active"`
 }
 
 type PersonZoneEvent struct {
-	ID               int64      `json:"id"`
-	PersonTrackID    *int64     `json:"person_track_id"`
-	ZoneID           *int64     `json:"zone_id"`
-	EntryTime        time.Time  `json:"entry_time"`
-	ExitTime         *time.Time `json:"exit_time"`
-	ExposureDuration *int64     `json:"exposure_duration"`
+	ID               int32         `json:"id"`
+	PersonTrackID    sql.NullInt32 `json:"person_track_id"`
+	ZoneID           sql.NullInt32 `json:"zone_id"`
+	EntryTime        time.Time     `json:"entry_time"`
+	ExitTime         sql.NullTime  `json:"exit_time"`
+	ExposureDuration sql.NullInt32 `json:"exposure_duration"`
 }
 
 type Plan struct {
-	ID          int64     `json:"id"`
-	SiteID      *int64    `json:"site_id"`
-	Level       *string   `json:"level"`
-	ImagePath   *string   `json:"image_path"`
-	ScaleFactor *float64  `json:"scale_factor"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID          int32           `json:"id"`
+	SiteID      sql.NullInt32   `json:"site_id"`
+	Level       sql.NullString  `json:"level"`
+	ImagePath   sql.NullString  `json:"image_path"`
+	ScaleFactor sql.NullFloat64 `json:"scale_factor"`
+	CreatedAt   time.Time       `json:"created_at"`
 }
 
 type RiskEvent struct {
-	ID          int64     `json:"id"`
-	WindowID    *int64    `json:"window_id"`
-	ZoneID      *int64    `json:"zone_id"`
-	RuleID      *int64    `json:"rule_id"`
-	RiskScore   *float64  `json:"risk_score"`
-	RiskLevel   *string   `json:"risk_level"`
-	Explanation *string   `json:"explanation"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID          int32           `json:"id"`
+	WindowID    sql.NullInt32   `json:"window_id"`
+	ZoneID      sql.NullInt32   `json:"zone_id"`
+	RuleID      sql.NullInt32   `json:"rule_id"`
+	RiskScore   sql.NullFloat64 `json:"risk_score"`
+	RiskLevel   sql.NullString  `json:"risk_level"`
+	Explanation sql.NullString  `json:"explanation"`
+	CreatedAt   time.Time       `json:"created_at"`
 }
 
 type Role struct {
-	ID          int64     `json:"id"`
-	Name        string    `json:"name"`
-	Description *string   `json:"description"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID          int32          `json:"id"`
+	Name        string         `json:"name"`
+	Description sql.NullString `json:"description"`
+	CreatedAt   time.Time      `json:"created_at"`
 }
 
 type Site struct {
-	ID               int64     `json:"id"`
-	Name             string    `json:"name"`
-	Location         *string   `json:"location"`
-	Description      *string   `json:"description"`
-	ConfidenceConfig *string   `json:"confidence_config"`
-	CreatedAt        time.Time `json:"created_at"`
+	ID               int32          `json:"id"`
+	Name             string         `json:"name"`
+	Location         sql.NullString `json:"location"`
+	Description      sql.NullString `json:"description"`
+	ConfidenceConfig sql.NullString `json:"confidence_config"`
+	CreatedAt        time.Time      `json:"created_at"`
 }
 
 type User struct {
-	ID           int64      `json:"id"`
-	Username     string     `json:"username"`
-	Email        string     `json:"email"`
-	PasswordHash string     `json:"password_hash"`
-	IsActive     *int64     `json:"is_active"`
-	CreatedAt    time.Time  `json:"created_at"`
-	LastLogin    *time.Time `json:"last_login"`
+	ID           int32         `json:"id"`
+	Username     string        `json:"username"`
+	Email        string        `json:"email"`
+	PasswordHash string        `json:"password_hash"`
+	IsActive     sql.NullInt16 `json:"is_active"`
+	CreatedAt    time.Time     `json:"created_at"`
+	LastLogin    sql.NullTime  `json:"last_login"`
 }
 
 type UserRole struct {
-	UserID int64 `json:"user_id"`
-	RoleID int64 `json:"role_id"`
+	UserID int32 `json:"user_id"`
+	RoleID int32 `json:"role_id"`
 }
 
 type Zone struct {
-	ID        int64     `json:"id"`
-	PlanID    *int64    `json:"plan_id"`
-	Name      *string   `json:"name"`
-	Type      *string   `json:"type"`
-	Polygon   string    `json:"polygon"`
-	RiskLevel *string   `json:"risk_level"`
-	IsActive  *int64    `json:"is_active"`
-	CreatedAt time.Time `json:"created_at"`
+	ID        int32          `json:"id"`
+	PlanID    sql.NullInt32  `json:"plan_id"`
+	Name      sql.NullString `json:"name"`
+	Type      sql.NullString `json:"type"`
+	Polygon   string         `json:"polygon"`
+	RiskLevel sql.NullString `json:"risk_level"`
+	IsActive  sql.NullInt16  `json:"is_active"`
+	CreatedAt time.Time      `json:"created_at"`
 }

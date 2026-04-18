@@ -1,0 +1,45 @@
+{{define "sidebar"}}
+<nav class="sidebar">
+    <div class="sidebar-header">
+        <h4><i class="bi bi-shield-check"></i> SafeSite AI</h4>
+    </div>
+    {{if .Site}}
+    <div class="current-site">
+        <i class="bi bi-building"></i>
+        <div class="site-info">
+            <div class="site-name">{{.Site.Name}}</div>
+            {{if .Site.Location}}<small class="site-location">{{.Site.Location}}</small>{{end}}
+        </div>
+        <a href="/select-site" class="btn btn-sm btn-outline-light ms-auto" title="Changer de site">
+            <i class="bi bi-arrow-repeat"></i>
+        </a>
+    </div>
+    {{end}}
+    <ul class="nav flex-column">
+        <li class="nav-item"><a class="nav-link" href="/"><i class="bi bi-speedometer2"></i> Tableau de bord</a></li>
+        <li class="nav-item"><a class="nav-link" href="/cameras"><i class="bi bi-camera-video"></i> Caméras</a></li>
+        <li class="nav-item"><a class="nav-link" href="/alertes"><i class="bi bi-exclamation-triangle"></i> Alertes</a></li>
+        <li class="nav-item"><a class="nav-link" href="/zones"><i class="bi bi-geo-alt"></i> Zones</a></li>
+        <li class="nav-item"><a class="nav-link" href="/analyses"><i class="bi bi-graph-up"></i> Analyses IA</a></li>
+        <li class="nav-item"><a class="nav-link" href="/rapports"><i class="bi bi-file-earmark-text"></i> Rapports</a></li>
+        <li class="nav-item"><a class="nav-link" href="/suivi"><i class="bi bi-activity"></i> Suivi</a></li>
+        
+    </ul>
+    <div class="sidebar-divider"></div>
+    <ul class="nav flex-column">
+        <li class="nav-item"><a class="nav-link" href="/admin"><i class="bi bi-gear"></i> Administration</a></li>
+    </ul>
+</nav>
+{{end}}
+
+{{define "head"}}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+<link href="/static/style.css" rel="stylesheet">
+{{end}}
+
+{{define "scripts"}}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+{{end}}

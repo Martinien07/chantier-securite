@@ -2,7 +2,7 @@ module srv.exe.dev
 
 go 1.25.7
 
-require modernc.org/sqlite v1.39.0
+require github.com/go-sql-driver/mysql v1.9.3
 
 require (
 	cel.dev/expr v0.24.0 // indirect
@@ -12,7 +12,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/fatih/structtag v1.2.0 // indirect
-	github.com/go-sql-driver/mysql v1.9.3 // indirect
 	github.com/google/cel-go v0.26.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
@@ -55,6 +54,7 @@ require (
 	modernc.org/libc v1.66.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
+	modernc.org/sqlite v1.39.0 // indirect
 )
 
 tool github.com/sqlc-dev/sqlc/cmd/sqlc

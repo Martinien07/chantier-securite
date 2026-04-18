@@ -1,0 +1,280 @@
+{{define "surveillance"}}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeSite AI — Surveillance en direct</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="/static/style.css" rel="stylesheet">
+    <style>
+        .status-dot {
+            display: inline-block;
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: #6c757d;
+            margin-right: 6px;
+        }
+        .status-dot.running {
+            background: #28a745;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+        .event-card {
+            border: 1px solid #dee2e6;
+            border-left: 4px solid #ffc107;
+            border-radius: 6px;
+            padding: 14px;
+            margin-bottom: 10px;
+            background: #fff;
+            transition: opacity .25s, transform .25s;
+        }
+        .event-card.removing {
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        .alert-card {
+            border: 1px solid #dee2e6;
+            border-left: 4px solid #198754;
+            border-radius: 6px;
+            padding: 12px 14px;
+            margin-bottom: 10px;
+            background: #f8fff9;
+        }
+        .alert-card.closed {
+            border-left-color: #6c757d;
+            background: #f8f9fa;
+            opacity: .65;
+        }
+        .risk-HIGH   { border-left-color: #dc3545 !important; }
+        .risk-MEDIUM { border-left-color: #ffc107 !important; }
+        .risk-LOW    { border-left-color: #0dcaf0 !important; }
+
+        .badge-HIGH   { background:#f8d7da; color:#842029; }
+        .badge-MEDIUM { background:#fff3cd; color:#664d03; }
+        .badge-LOW    { background:#cff4fc; color:#055160; }
+
+        .empty-msg { text-align:center; color:#6c757d; padding: 32px 0; font-size:.9rem; }
+        .col-pending { border-right: 1px solid #dee2e6; }
+        @media(max-width:768px){ .col-pending { border-right: none; border-bottom: 1px solid #dee2e6; margin-bottom:16px; } }
+    </style>
+</head>
+<body>
+<div class="d-flex">
+    {{template "sidebar" .}}
+    <main class="main-content" style="flex:1; padding: 24px; overflow-y:auto;">
+
+        <!-- En-tête -->
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <h1 class="page-title mb-0">
+                <i class="bi bi-shield-check"></i> Surveillance en direct
+                {{if .Site}}<small class="text-muted fs-6 ms-2">— {{.Site.Name}}</small>{{end}}
+            </h1>
+            <div class="d-flex align-items-center gap-2">
+                <span class="status-dot" id="status-dot"></span>
+                <span id="status-label" class="small text-muted">Chargement…</span>
+            </div>
+        </div>
+
+        <!-- Grille principale -->
+        <div class="row g-0">
+
+            <!-- Colonne gauche : événements en attente -->
+            <div class="col-md-6 col-pending pe-md-3">
+                <div class="d-flex align-items-center mb-2">
+                    <h5 class="mb-0 me-2">En attente</h5>
+                    <span class="badge bg-warning text-dark" id="pending-count">0</span>
+                </div>
+                <div id="pending-list">
+                    <div class="empty-msg">Aucun événement en attente</div>
+                </div>
+            </div>
+
+            <!-- Colonne droite : alertes validées -->
+            <div class="col-md-6 ps-md-3">
+                <div class="d-flex align-items-center mb-2">
+                    <h5 class="mb-0 me-2">Alertes actives</h5>
+                    <span class="badge bg-danger" id="alerts-count">0</span>
+                </div>
+                <div id="alerts-list">
+                    <div class="empty-msg">Aucune alerte active</div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const SITE_ID      = {{.SiteID}};
+const POLL_MS      = 5000;
+let   pendingCache = [];
+let   alertsCache  = [];
+
+// ── Statut de la détection ────────────────────────────────────────────────
+async function fetchStatus() {
+    try {
+        const d = await (await fetch('/api/detection/status')).json();
+        const dot   = document.getElementById('status-dot');
+        const label = document.getElementById('status-label');
+        if (d.running) {
+            dot.classList.add('running');
+            label.textContent = 'Détection en cours…';
+        } else {
+            dot.classList.remove('running');
+            label.textContent = 'Détection inactive';
+        }
+    } catch(e) { console.warn('status:', e); }
+}
+
+// ── Événements en attente ────────────────────────────────────────────────
+async function fetchPending() {
+    try {
+        const events = await (await fetch('/api/pending-events')).json();
+        pendingCache = events;
+        renderPending(events);
+    } catch(e) { console.warn('pending:', e); }
+}
+
+function levelBadge(l) {
+    const cls = { HIGH:'badge-HIGH', MEDIUM:'badge-MEDIUM', LOW:'badge-LOW' };
+    return `<span class="badge ${cls[l] || 'bg-secondary'}">${l}</span>`;
+}
+
+function renderPending(events) {
+    const list  = document.getElementById('pending-list');
+    const count = document.getElementById('pending-count');
+    count.textContent = events.length;
+
+    if (!events.length) {
+        list.innerHTML = '<div class="empty-msg"><i class="bi bi-check-circle"></i> Aucun événement en attente</div>';
+        return;
+    }
+
+    list.innerHTML = events.map(e => `
+      <div class="event-card risk-${e.risk_level}" id="ev-${e.id}">
+        <div class="d-flex justify-content-between align-items-start mb-1">
+          <strong class="small">${esc(e.camera_name) || 'Caméra inconnue'}</strong>
+          ${levelBadge(e.risk_level)}
+        </div>
+        ${e.zone_name ? `<div class="text-muted small mb-1"><i class="bi bi-geo-alt"></i> ${esc(e.zone_name)}</div>` : ''}
+        ${e.rule_name  ? `<div class="text-muted small mb-1"><i class="bi bi-book"></i> ${esc(e.rule_name)}</div>`  : ''}
+        <p class="small mb-2" style="color:#495057">${esc(e.explanation) || '—'}</p>
+        <div class="text-muted" style="font-size:11px">${fmtDate(e.created_at)}</div>
+        <div class="d-flex gap-2 mt-2">
+          <button class="btn btn-sm btn-success" onclick="validate(${e.id})">
+            <i class="bi bi-check-lg"></i> Valider
+          </button>
+          <button class="btn btn-sm btn-danger" onclick="reject(${e.id})">
+            <i class="bi bi-x-lg"></i> Rejeter
+          </button>
+        </div>
+      </div>
+    `).join('');
+}
+
+async function validate(id) {
+    animateRemove(`ev-${id}`, async () => {
+        const r = await fetch(`/api/risk-events/${id}/validate`, { method:'POST' });
+        if (!r.ok) { alert('Erreur validation'); return; }
+        decPending();
+        await fetchAlerts(); // rafraîchit les alertes immédiatement
+    });
+}
+
+async function reject(id) {
+    animateRemove(`ev-${id}`, async () => {
+        const r = await fetch(`/api/risk-events/${id}/reject`, { method:'POST' });
+        if (!r.ok) { alert('Erreur rejet'); return; }
+        decPending();
+    });
+}
+
+function decPending() {
+    const el = document.getElementById('pending-count');
+    el.textContent = Math.max(0, parseInt(el.textContent) - 1);
+}
+
+// ── Alertes actives ──────────────────────────────────────────────────────
+async function fetchAlerts() {
+    try {
+        const alerts = await (await fetch('/api/alerts/active')).json();
+        alertsCache = alerts;
+        renderAlerts(alerts);
+    } catch(e) { console.warn('alerts:', e); }
+}
+
+function renderAlerts(alerts) {
+    const list  = document.getElementById('alerts-list');
+    const count = document.getElementById('alerts-count');
+    const active = alerts.filter(a => a.status === 'new' || a.status === 'acknowledged');
+    count.textContent = active.length;
+
+    if (!alerts.length) {
+        list.innerHTML = '<div class="empty-msg"><i class="bi bi-bell-slash"></i> Aucune alerte active</div>';
+        return;
+    }
+
+    list.innerHTML = alerts.map(a => {
+        const closed = (a.status === 'closed');
+        return `
+        <div class="alert-card risk-${a.alert_level} ${closed ? 'closed' : ''}" id="al-${a.id}">
+          <div class="d-flex justify-content-between align-items-start mb-1">
+            <strong class="small">${esc(a.camera_name) || 'Caméra ' + a.camera_id}</strong>
+            ${levelBadge(a.alert_level)}
+          </div>
+          <p class="small mb-1" style="color:#495057">${esc(a.explanation) || '—'}</p>
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="text-muted" style="font-size:11px">${fmtDate(a.sent_at || a.created_at)}</span>
+            ${closed
+              ? `<span class="badge bg-secondary">Résolu</span>`
+              : `<button class="btn btn-sm btn-outline-secondary" onclick="resolve(${a.id})">
+                   <i class="bi bi-check2-circle"></i> Résolu
+                 </button>`
+            }
+          </div>
+        </div>`;
+    }).join('');
+}
+
+async function resolve(id) {
+    const r = await fetch(`/api/alerts/${id}/resolve`, { method:'POST' });
+    if (!r.ok) { alert('Erreur'); return; }
+    await fetchAlerts();
+}
+
+// ── Utilitaires ──────────────────────────────────────────────────────────
+function esc(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function fmtDate(s) {
+    if (!s) return '';
+    return new Date(s).toLocaleString('fr-CA', { dateStyle:'short', timeStyle:'short' });
+}
+
+function animateRemove(id, callback) {
+    const el = document.getElementById(id);
+    if (!el) { callback(); return; }
+    el.classList.add('removing');
+    el.addEventListener('transitionend', () => { el.remove(); callback(); }, { once: true });
+    setTimeout(() => { if (document.getElementById(id)) { el.remove(); callback(); } }, 400);
+}
+
+// ── Polling ──────────────────────────────────────────────────────────────
+function poll() {
+    fetchStatus();
+    fetchPending();
+    fetchAlerts();
+}
+
+poll();
+setInterval(poll, POLL_MS);
+</script>
+</body>
+</html>
+{{end}}

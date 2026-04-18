@@ -1,0 +1,200 @@
+{{define "validation"}}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Validation des risques — SafeSite</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #f4f5f7; color: #1a1a2e; }
+    .topbar { background: #1a1a2e; color: #fff; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .topbar h1 { font-size: 18px; font-weight: 600; }
+    .badge { background: #e53e3e; color: #fff; border-radius: 12px; padding: 2px 10px; font-size: 13px; margin-left: 10px; }
+    .container { max-width: 1100px; margin: 32px auto; padding: 0 16px; }
+    .section-title { font-size: 15px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 16px; }
+    .empty { text-align: center; padding: 48px; color: #aaa; font-size: 15px; }
+    .card { background: #fff; border-radius: 10px; padding: 20px 24px; margin-bottom: 14px; border-left: 5px solid #e53e3e; display: flex; gap: 20px; align-items: flex-start; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
+    .card.ELEVE  { border-left-color: #dd6b20; }
+    .card.MOYEN  { border-left-color: #d69e2e; }
+    .card.FAIBLE { border-left-color: #38a169; }
+    .card-body { flex: 1; }
+    .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .level-badge { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: .04em; }
+    .level-CRITIQUE { background: #fed7d7; color: #c53030; }
+    .level-ELEVE    { background: #feebc8; color: #c05621; }
+    .level-MOYEN    { background: #fefcbf; color: #b7791f; }
+    .level-FAIBLE   { background: #c6f6d5; color: #276749; }
+    .cam-label { font-size: 13px; color: #666; }
+    .messages { font-size: 14px; color: #444; line-height: 1.6; }
+    .meta { font-size: 12px; color: #999; margin-top: 6px; }
+    .actions { display: flex; flex-direction: column; gap: 8px; min-width: 120px; }
+    .btn { padding: 9px 18px; border-radius: 7px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity .15s; }
+    .btn:hover { opacity: .85; }
+    .btn-accept { background: #38a169; color: #fff; }
+    .btn-reject { background: #e53e3e; color: #fff; }
+    .spinner { display: none; font-size: 13px; color: #666; margin-top: 6px; text-align: center; }
+    /* Alertes acceptées */
+    .alert-card { background: #fff; border-radius: 10px; padding: 18px 22px; margin-bottom: 12px; border-left: 5px solid #3182ce; box-shadow: 0 1px 4px rgba(0,0,0,.07); display: flex; gap: 16px; align-items: center; }
+    .alert-card .info { flex: 1; }
+    .alert-card .status-badge { font-size: 12px; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
+    .s-new   { background: #bee3f8; color: #2b6cb0; }
+    .s-ack   { background: #c6f6d5; color: #276749; }
+    .s-done  { background: #e2e8f0; color: #718096; }
+    .btn-sm  { padding: 6px 14px; font-size: 13px; border-radius: 6px; border: none; cursor: pointer; font-weight: 500; }
+    .btn-ack  { background: #ebf8ff; color: #2b6cb0; border: 1px solid #90cdf4; }
+    .btn-done { background: #f0fff4; color: #276749; border: 1px solid #9ae6b4; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>
+    SafeSite — Validation des risques
+    <span class="badge" id="pending-badge">...</span>
+  </h1>
+  <span style="font-size:13px;opacity:.7">Site : {{if .Site}}{{.Site.Name}}{{end}}</span>
+</div>
+
+<div class="container">
+
+  <!-- SECTION PENDING -->
+  <div class="section-title">En attente de validation</div>
+  <div id="pending-list"></div>
+
+  <!-- SECTION ALERTES ACTIVES -->
+  <div class="section-title" style="margin-top:40px">Alertes actives (validées)</div>
+  <div id="alert-list"></div>
+
+</div>
+
+<script>
+const POLL_MS = 5000;
+
+function levelClass(lvl) {
+  if (!lvl) return '';
+  const l = lvl.toUpperCase();
+  if (l.includes('CRIT')) return 'CRITIQUE';
+  if (l.includes('ELEV') || l.includes('HIGH')) return 'ELEVE';
+  if (l.includes('MOY') || l.includes('MED')) return 'MOYEN';
+  return 'FAIBLE';
+}
+
+function formatTime(ts) {
+  if (!ts) return '';
+  return new Date(ts).toLocaleString('fr-CA', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+function splitMessages(msg) {
+  if (!msg) return [];
+  return msg.split('|').map(m => m.trim()).filter(Boolean);
+}
+
+// ── Pending events ────────────────────────────────────────────────────────────
+async function loadPending() {
+  const res = await fetch('/api/risk-events/pending');
+  const events = await res.json();
+  const badge = document.getElementById('pending-badge');
+  badge.textContent = events.length;
+  badge.style.display = events.length ? 'inline' : 'none';
+
+  const list = document.getElementById('pending-list');
+  if (!events.length) {
+    list.innerHTML = '<div class="empty">Aucun événement en attente ✓</div>';
+    return;
+  }
+  list.innerHTML = events.map(e => {
+    const lvl = levelClass(e.risk_level);
+    const msgs = splitMessages(e.risk_messages);
+    return `
+    <div class="card ${lvl}" id="re-${e.id}">
+      <div class="card-body">
+        <div class="card-header">
+          <span class="level-badge level-${lvl}">${e.risk_level || '—'}</span>
+          <span class="cam-label">📷 ${e.camera_name || 'Cam ' + e.camera_id} — ${e.site_name || ''}</span>
+        </div>
+        <div class="messages">
+          ${msgs.map(m => `<div>• ${m}</div>`).join('')}
+        </div>
+        <div class="meta">Détecté à ${formatTime(e.created_at)}</div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-accept" onclick="accept(${e.id})">✓ Valider</button>
+        <button class="btn btn-reject" onclick="reject(${e.id})">✗ Rejeter</button>
+        <div class="spinner" id="spin-${e.id}">...</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function accept(id) {
+  setSpin(id, true);
+  await fetch(`/api/risk-events/${id}/accept`, {method:'POST'});
+  // Retirer immédiatement de la liste pending
+  document.getElementById(`re-${id}`)?.remove();
+  // Recharger les alertes
+  loadAlerts();
+  loadPending();
+}
+
+async function reject(id) {
+  setSpin(id, true);
+  await fetch(`/api/risk-events/${id}/reject`, {method:'POST'});
+  // Disparaît immédiatement
+  const el = document.getElementById(`re-${id}`);
+  if (el) { el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }
+  loadPending();
+}
+
+function setSpin(id, on) {
+  const s = document.getElementById(`spin-${id}`);
+  if (s) s.style.display = on ? 'block' : 'none';
+}
+
+// ── Alertes actives ───────────────────────────────────────────────────────────
+async function loadAlerts() {
+  const res = await fetch('/api/alerts/active');
+  const alerts = await res.json();
+  const list = document.getElementById('alert-list');
+  if (!alerts.length) {
+    list.innerHTML = '<div class="empty">Aucune alerte active</div>';
+    return;
+  }
+  list.innerHTML = alerts.map(a => {
+    const lvl = levelClass(a.alert_level);
+    const statusLabel = {new:'Nouvelle', acknowledged:'Prise en charge', closed:'Résolue'}[a.status] || a.status;
+    const statusCls = {new:'s-new', acknowledged:'s-ack', closed:'s-done'}[a.status] || 's-new';
+    return `
+    <div class="alert-card" id="al-${a.id}">
+      <div class="info">
+        <span class="level-badge level-${lvl}">${a.alert_level || '—'}</span>
+        <span style="font-size:13px;color:#555;margin-left:8px">${a.camera_name || ''}</span>
+        <div style="font-size:14px;margin-top:6px;color:#333">${a.explanation || ''}</div>
+        <div style="font-size:12px;color:#999;margin-top:4px">Envoyée à ${formatTime(a.sent_at)}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+        <span class="status-badge ${statusCls}">${statusLabel}</span>
+        ${a.status === 'new' ? `<button class="btn-sm btn-ack" onclick="ackAlert(${a.id})">Prendre en charge</button>` : ''}
+        ${a.status === 'acknowledged' ? `<button class="btn-sm btn-done" onclick="closeAlert(${a.id})">Marquer résolu</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function ackAlert(id) {
+  await fetch(`/api/alerts/${id}/ack`, {method:'POST'});
+  loadAlerts();
+}
+
+async function closeAlert(id) {
+  await fetch(`/api/alerts/${id}/close`, {method:'POST'});
+  loadAlerts();
+}
+
+// ── Polling ───────────────────────────────────────────────────────────────────
+loadPending();
+loadAlerts();
+setInterval(() => { loadPending(); loadAlerts(); }, POLL_MS);
+</script>
+</body>
+</html>
+{{end}}
