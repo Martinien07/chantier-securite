@@ -1096,6 +1096,42 @@ document.getElementById('cameraModal').addEventListener('hidden.bs.modal', () =>
         } catch(e) {}
     }
 
+    // Fonction pour trier les plans et sélectionner le plan par défaut (Sous-sol -> RDC -> R+1...)
+    function sortAndSelectDefaultPlan() {
+        const select = document.getElementById('level-select');
+        if (select.options.length <= 0) return null;
+        
+        const options = Array.from(select.options);
+        
+        // Fonction pour attribuer un score de priorité basé sur le nom du niveau
+        function getScore(text) {
+            const t = text.toLowerCase();
+            if (t.includes('sous-sol') || t.includes('sous sol') || t.includes('-1')) return -1;
+            if (t.includes('rdc') || t.includes('rez')) return 0;
+            const rMatch = t.match(/r\+(\d+)/);
+            if (rMatch) return parseInt(rMatch[1]);
+            const nMatch = t.match(/niveau (\d+)/);
+            if (nMatch) return parseInt(nMatch[1]);
+            return 999;
+        }
+        
+        // Trier les options
+        options.sort((a, b) => {
+            const scoreA = getScore(a.text);
+            const scoreB = getScore(b.text);
+            if (scoreA !== scoreB) return scoreA - scoreB;
+            return a.text.localeCompare(b.text);
+        });
+        
+        // Réinsérer les options triées dans le select
+        select.innerHTML = '';
+        options.forEach(opt => select.appendChild(opt));
+        
+        // Sélectionner le premier élément par défaut
+        select.selectedIndex = 0;
+        return select.value;
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         planViewer.init();
         loadChart('week');
@@ -1108,16 +1144,16 @@ document.getElementById('cameraModal').addEventListener('hidden.bs.modal', () =>
             .then(data => {
                 currentAlerts = data || [];
                 checkHighAlerts();
-                const select = document.getElementById('level-select');
-                if (select.options.length > 0) {
-                    loadPlan(select.value);
+                const defaultVal = sortAndSelectDefaultPlan();
+                if (defaultVal) {
+                    loadPlan(defaultVal);
                 }
             })
             .catch(() => {
                 currentAlerts = [];
-                const select = document.getElementById('level-select');
-                if (select.options.length > 0) {
-                    loadPlan(select.value);
+                const defaultVal = sortAndSelectDefaultPlan();
+                if (defaultVal) {
+                    loadPlan(defaultVal);
                 }
             });
     });
