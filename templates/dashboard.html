@@ -1,0 +1,1163 @@
+{{define "dashboard"}}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeSite AI - Tableau de bord</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Audio pour alertes -->
+    <audio id="alert-sound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleQAtb8/NlmYMA1KT0cl+VQAARoy9smIXADKAq8FxJwATcKC4f0IAAGWdqp9fCQAvapuuhFUAAGafpqBeCAAvbKCzgl0AAGmjqqBdCAAucqe3gmMAAGynrqNfCAAveKq8hGcAAG2qsKZhCQAverC/h2oAAG6ss6lkCgAvfrTDiW0AAG+utaxmCwAwgLbGi3AAAG+vt69oDAAwhbnJjnMAAHCxuLFqDQAxh7vMkHYAAHGyubNsDgAyiL3OknkAAHKzu7VuDwAzir/QlHwAAHO0vLdwEAAyi8HSlH4AAHR1vblxEgAzjMPUloEAAHR2wLtzEwA0jsTWmIQAAHV3wbx0FAA0j8bYmocAAHZ4wr12FQA1kMjamYoAAHd5xL94FgA2kcvdm4wAAHh6xb95FwA2kszenY8AAHl7xsB7GAA3k83gnpEAAHp8x8F8GQA4lM/in5QAAH19ycJ9GgA4ldHkoJYAAH5+ysN/GwA5ltPmpZkAAH9/y8SAHAAbltXoppsAAICBzMWBHQAcl9fqp54AAICC" type="audio/wav">
+    </audio>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="/static/style.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .dashboard-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        /* Stats cards */
+        .stats-row {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .stat-card {
+            flex: 1;
+            background: white;
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        .stat-icon.alerts { background: #fee2e2; color: #dc2626; }
+        .stat-icon.cameras { background: #dbeafe; color: #2563eb; }
+        .stat-icon.zones { background: #fef3c7; color: #d97706; }
+        .stat-icon.detections { background: #d1fae5; color: #059669; }
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #1e293b;
+            line-height: 1;
+        }
+        .stat-label {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-top: 2px;
+        }
+        
+        /* Plan section */
+        .plan-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+            background: #f1f5f9;
+            min-height: 0;
+        }
+        .plan-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        .plan-controls {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .plan-container {
+            flex: 1;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .plan-viewer {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            cursor: grab;
+        }
+        .plan-viewer:active { cursor: grabbing; }
+        .plan-viewer svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        #plan-content {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform-origin: center center;
+        }
+        
+        /* Legend */
+        .plan-legend {
+            width: 200px;
+            background: #f8fafc;
+            border-left: 1px solid #e2e8f0;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+        }
+        .legend-title {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        .legend-section {
+            margin-bottom: 1rem;
+        }
+        .legend-section-title {
+            font-size: 0.75rem;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0;
+            font-size: 0.85rem;
+            color: #334155;
+        }
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+        .legend-icon {
+            width: 20px;
+            text-align: center;
+        }
+        .zoom-indicator {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            z-index: 10;
+        }
+        
+        /* Bottom sections */
+        .bottom-sections {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            padding: 1rem;
+            background: #f8fafc;
+        }
+        .section-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .section-header {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .section-title {
+            font-weight: 600;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .section-body {
+            padding: 1rem;
+        }
+        
+        /* Camera grid */
+        .camera-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 0.75rem;
+        }
+        .camera-thumb {
+            position: relative;
+            aspect-ratio: 16/10;
+            background: #1e293b;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .camera-thumb:hover {
+            transform: scale(1.03);
+        }
+        .camera-thumb video, .camera-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .camera-thumb-label {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            color: white;
+            padding: 1.5rem 0.5rem 0.5rem;
+            font-size: 0.75rem;
+        }
+        .camera-thumb-status {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #22c55e;
+        }
+        .camera-thumb-status.offline { background: #ef4444; }
+        .camera-thumb-webcam {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background: #2563eb;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.65rem;
+        }
+        
+        /* Chart section */
+        .chart-tabs {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .chart-tab {
+            padding: 0.25rem 0.75rem;
+            border: none;
+            background: #e2e8f0;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            color: #64748b;
+        }
+        .chart-tab.active {
+            background: #2563eb;
+            color: white;
+        }
+        .chart-container {
+            height: 200px;
+        }
+        
+        /* Camera modal */
+        .camera-modal-content {
+            background: #000;
+            position: relative;
+        }
+        .camera-modal-content video {
+            width: 100%;
+            max-height: 70vh;
+        }
+        .camera-modal-info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.9));
+            color: white;
+            padding: 2rem 1rem 1rem;
+        }
+        /* Alert banner */
+        .alert-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 9999;
+            background: linear-gradient(90deg, #dc2626 0%, #ef4444 50%, #dc2626 100%);
+            color: white;
+            padding: 1rem;
+            animation: alertPulse 1s ease-in-out infinite;
+        }
+        @keyframes alertPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        .alert-banner-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        .alert-banner i {
+            font-size: 1.5rem;
+            animation: shake 0.5s ease-in-out infinite;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        /* Alert card clickable */
+        .alert-item {
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .alert-item:hover {
+            transform: translateX(5px);
+            box-shadow: -3px 0 10px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-layout">
+        {{template "sidebar" .}}
+        
+        <div class="main-content">
+            <!-- Stats Row -->
+            <div class="stats-row">
+                <div class="stat-card" onclick="window.location='/alertes'" style="cursor:pointer;">
+                    <div class="stat-icon alerts"><i class="bi bi-exclamation-triangle"></i></div>
+                    <div>
+                        <div class="stat-value" id="stat-alerts">{{.ActiveAlerts}}</div>
+                        <div class="stat-label">Alertes actives</div>
+                    </div>
+                </div>
+                <div class="stat-card" onclick="window.location='/alertes'" style="cursor:pointer;border-left:3px solid #dc2626;">
+                    <div class="stat-icon alerts" style="background:#fee2e2;"><i class="bi bi-shield-exclamation"></i></div>
+                    <div>
+                        <div class="stat-value" id="stat-pending" style="color:#dc2626;">—</div>
+                        <div class="stat-label">En attente validation</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon cameras"><i class="bi bi-camera-video"></i></div>
+                    <div>
+                        <div class="stat-value" id="stat-cameras">{{.TotalCameras}}</div>
+                        <div class="stat-label">Caméras</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon zones"><i class="bi bi-exclamation-octagon"></i></div>
+                    <div>
+                        <div class="stat-value" id="stat-zones">{{.HighRiskZones}}</div>
+                        <div class="stat-label">Zones à risque élevé</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon detections"><i class="bi bi-eye"></i></div>
+                    <div>
+                        <div class="stat-value" id="stat-detections">{{.DetectionsToday}}</div>
+                        <div class="stat-label">Détections aujourd'hui</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Plan Section -->
+            <div class="plan-section">
+                <div class="plan-header">
+                    <div class="plan-controls">
+                        <select id="level-select" class="form-select form-select-sm" style="width: auto;" onchange="loadPlan(this.value)">
+                            {{range .Plans}}
+                            <option value="{{.ID}}">{{if .Level}}{{.Level}}{{else}}Niveau {{.ID}}{{end}}</option>
+                            {{end}}
+                        </select>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-secondary" onclick="planViewer.zoomOut()" title="Zoom -"><i class="bi bi-dash"></i></button>
+                            <button class="btn btn-outline-secondary" onclick="planViewer.reset()" title="Reset"><i class="bi bi-arrows-fullscreen"></i></button>
+                            <button class="btn btn-outline-secondary" onclick="planViewer.zoomIn()" title="Zoom +"><i class="bi bi-plus"></i></button>
+                        </div>
+                    </div>
+                    <div class="text-muted" style="font-size: 0.85rem;">Ctrl + Molette pour zoomer • Glisser pour déplacer</div>
+                </div>
+                
+                <div class="plan-container">
+                    <div class="plan-viewer" id="plan-viewer">
+                        <div id="plan-content">
+                            <svg id="plan-svg" viewBox="0 0 800 600" preserveAspectRatio="xMinYMin meet">
+                                <image id="plan-image" x="0" y="0" width="800" height="600" href=""/>
+                                <g id="plan-zones"></g>
+                                <g id="plan-cameras"></g>
+                            </svg>
+                        </div>
+                        <div class="zoom-indicator" id="zoom-indicator">100%</div>
+                    </div>
+                    
+                    <!-- Legend -->
+                    <div class="plan-legend">
+                        <div class="legend-title">Légende</div>
+                        
+                        <div class="legend-section">
+                            <div class="legend-section-title">Caméras</div>
+                            <div class="legend-item">
+                                <span class="legend-icon" style="color: #2563eb;"><i class="bi bi-camera-video-fill"></i></span>
+                                <span>Caméra RTSP</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-icon" style="color: #7c3aed;"><i class="bi bi-webcam-fill"></i></span>
+                                <span>Webcam</span>
+                            </div>
+                        </div>
+                        
+                        <div class="legend-section">
+                            <div class="legend-section-title">Niveau de risque</div>
+                            <div class="legend-item">
+                                <span class="legend-color" style="background: rgba(239, 68, 68, 0.4); border: 2px solid #ef4444;"></span>
+                                <span>Élevé (HIGH)</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color" style="background: rgba(245, 158, 11, 0.4); border: 2px solid #f59e0b;"></span>
+                                <span>Moyen (MEDIUM)</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color" style="background: rgba(34, 197, 94, 0.4); border: 2px solid #22c55e;"></span>
+                                <span>Faible (LOW)</span>
+                            </div>
+                        </div>
+                        
+                        <div class="legend-section">
+                            <div class="legend-section-title">Types de zone</div>
+                            <div class="legend-item" id="zone-types-list">
+                                <span class="text-muted" style="font-size: 0.8rem;">Chargement...</span>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-auto pt-3 border-top">
+                            <div class="text-muted" style="font-size: 0.75rem;">
+                                <i class="bi bi-info-circle"></i> Cliquez sur une caméra pour voir le flux en direct
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Bottom Sections -->
+            <div class="bottom-sections">
+                <!-- Camera Preview -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <div class="section-title"><i class="bi bi-grid-3x3-gap"></i> Aperçu des caméras</div>
+                        <a href="/cameras" class="btn btn-sm btn-outline-primary">Voir tout</a>
+                    </div>
+                    <div class="section-body">
+                        <div class="camera-grid" id="camera-preview-grid">
+                            <!-- Cameras loaded dynamically -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Incidents Chart -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <div class="section-title"><i class="bi bi-graph-up"></i> Incidents</div>
+                        <div class="chart-tabs">
+                            <button class="chart-tab active" onclick="loadChart('week', this)">Semaine</button>
+                            <button class="chart-tab" onclick="loadChart('month', this)">Mois</button>
+                            <button class="chart-tab" onclick="loadChart('year', this)">Année</button>
+                        </div>
+                    </div>
+                    <div class="section-body">
+                        <div class="chart-container">
+                            <canvas id="incidents-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Camera Modal -->
+    <div class="modal fade" id="cameraModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content camera-modal-content">
+                <div class="modal-body p-0" id="camera-modal-body">
+                    <video id="camera-video" autoplay playsinline></video>
+                    <div class="camera-modal-info">
+                        <h5 id="camera-modal-name">Caméra</h5>
+                        <small id="camera-modal-status"></small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" data-bs-dismiss="modal"></button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal modification alerte -->
+    <div class="modal fade" id="alertModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-exclamation-triangle"></i> Modifier l'alerte</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="alert-id">
+                    <div class="mb-3">
+                        <label class="form-label">Caméra</label>
+                        <input type="text" class="form-control" id="alert-camera" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Niveau d'alerte</label>
+                        <select class="form-select" id="alert-level">
+                            <option value="HIGH">🔴 HIGH - Critique</option>
+                            <option value="MEDIUM">🟠 MEDIUM - Moyen</option>
+                            <option value="LOW">🟢 LOW - Faible</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Statut</label>
+                        <select class="form-select" id="alert-status">
+                            <option value="new">Nouvelle</option>
+                            <option value="acknowledged">Prise en compte</option>
+                            <option value="closed">Résolue</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-primary" onclick="saveAlert()">Enregistrer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Alert banner for HIGH alerts -->
+    <div id="alert-banner" class="alert-banner" style="display: none;">
+        <div class="alert-banner-content">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <span id="alert-banner-text">ALERTE CRITIQUE DÉTECTÉE</span>
+            <button class="btn btn-sm btn-outline-light ms-3" onclick="muteAlert()"><i class="bi bi-volume-mute"></i> Couper le son</button>
+            <button class="btn btn-sm btn-light ms-2" onclick="dismissBanner()"><i class="bi bi-x"></i></button>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    // Plan viewer with pan/zoom
+    const planViewer = {
+        scale: 1,
+        panX: 0,
+        panY: 0,
+        isDragging: false,
+        lastX: 0,
+        lastY: 0,
+        
+        init() {
+            const viewer = document.getElementById('plan-viewer');
+            
+            // Mouse wheel zoom
+            viewer.addEventListener('wheel', (e) => {
+                if (e.ctrlKey) {
+                    e.preventDefault();
+                    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+                    this.scale = Math.max(0.5, Math.min(5, this.scale + delta));
+                    this.applyTransform();
+                }
+            }, { passive: false });
+            
+            // Pan
+            viewer.addEventListener('mousedown', (e) => {
+                if (e.target.closest('.camera-marker')) return;
+                this.isDragging = true;
+                this.lastX = e.clientX;
+                this.lastY = e.clientY;
+            });
+            
+            window.addEventListener('mousemove', (e) => {
+                if (!this.isDragging) return;
+                this.panX += e.clientX - this.lastX;
+                this.panY += e.clientY - this.lastY;
+                this.lastX = e.clientX;
+                this.lastY = e.clientY;
+                this.applyTransform();
+            });
+            
+            window.addEventListener('mouseup', () => this.isDragging = false);
+        },
+        
+        applyTransform() {
+            const content = document.getElementById('plan-content');
+            content.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.scale})`;
+            document.getElementById('zoom-indicator').textContent = Math.round(this.scale * 100) + '%';
+        },
+        
+        zoomIn() { this.scale = Math.min(5, this.scale + 0.25); this.applyTransform(); },
+        zoomOut() { this.scale = Math.max(0.5, this.scale - 0.25); this.applyTransform(); },
+        reset() { this.scale = 1; this.panX = 0; this.panY = 0; this.applyTransform(); }
+    };
+    
+    // Incident chart
+    let incidentChart = null;
+    
+    function loadChart(period, btn) {
+        document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        else document.querySelector(`.chart-tab[onclick*="'${period}'"]`)?.classList.add('active');
+        
+        const ctx = document.getElementById('incidents-chart').getContext('2d');
+        
+        // Sample data based on period
+        let labels, data;
+        if (period === 'week') {
+            labels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+            data = [3, 5, 2, 8, 4, 1, 2];
+        } else if (period === 'month') {
+            labels = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'];
+            data = [12, 19, 8, 15];
+        } else {
+            labels = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+            data = [45, 38, 52, 41, 35, 48, 55, 42, 38, 44, 50, 47];
+        }
+        
+        if (incidentChart) incidentChart.destroy();
+        
+        incidentChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Incidents',
+                    data: data,
+                    backgroundColor: 'rgba(37, 99, 235, 0.7)',
+                    borderColor: '#2563eb',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#e2e8f0' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+    
+    // Load plan data
+    function loadPlan(planId) {
+        fetch(`/api/plans/${planId}/data`)
+            .then(r => r.json())
+            .then(data => {
+                // Set plan image and adjust viewBox to match actual image dimensions
+                const planImage = document.getElementById('plan-image');
+                const planSvg = document.getElementById('plan-svg');
+                
+                if (data.plan.image_path) {
+                    // Create a temporary image to get real dimensions
+                    const tempImg = new Image();
+                    tempImg.onload = function() {
+                        const w = tempImg.naturalWidth || 800;
+                        const h = tempImg.naturalHeight || 600;
+                        
+                        // Update SVG viewBox and image dimensions to match
+                        planSvg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+                        planImage.setAttribute('width', w);
+                        planImage.setAttribute('height', h);
+                        planImage.setAttribute('href', data.plan.image_path);
+                        
+                        // Draw zones and cameras after viewBox is set
+                        drawZones(data.zones || []);
+                        drawCameras(data.cameras || []);
+                        updateZoneTypes(data.zones || []);
+                        loadCameraPreviews(data.cameras || []);
+                        
+                        planViewer.reset();
+                    };
+                    tempImg.onerror = function() {
+                        // Fallback to default dimensions
+                        planSvg.setAttribute('viewBox', '0 0 800 600');
+                        planImage.setAttribute('href', data.plan.image_path);
+                        drawZones(data.zones || []);
+                        drawCameras(data.cameras || []);
+                        updateZoneTypes(data.zones || []);
+                        loadCameraPreviews(data.cameras || []);
+                        planViewer.reset();
+                    };
+                    tempImg.src = data.plan.image_path;
+                } else {
+                    drawZones(data.zones || []);
+                    drawCameras(data.cameras || []);
+                    updateZoneTypes(data.zones || []);
+                    loadCameraPreviews(data.cameras || []);
+                    planViewer.reset();
+                }
+            })
+            .catch(err => console.error('Error loading plan:', err));
+    }
+    
+    // Helpers pour extraire les valeurs des champs *string Go sérialisés en JSON
+    function strVal(v) {
+        if (v === null || v === undefined) return '';
+        if (typeof v === 'string') return v;
+        if (typeof v === 'object' && v.String !== undefined) return v.Valid ? v.String : '';
+        return String(v);
+    }
+    function intVal(v) {
+        if (v === null || v === undefined) return 0;
+        if (typeof v === 'number') return v;
+        if (typeof v === 'object' && v.Int64 !== undefined) return v.Valid ? v.Int64 : 0;
+        return parseInt(v) || 0;
+    }
+    function floatVal(v) {
+        if (v === null || v === undefined) return 0;
+        if (typeof v === 'number') return v;
+        if (typeof v === 'object' && v.Float64 !== undefined) return v.Valid ? v.Float64 : 0;
+        return parseFloat(v) || 0;
+    }
+
+    function drawZones(zones) {
+        const g = document.getElementById('plan-zones');
+        g.innerHTML = '';
+        
+        zones.forEach(zone => {
+            try {
+                const polygonRaw = strVal(zone.polygon) || '[]';
+                const points = JSON.parse(polygonRaw);
+                if (!points.length) return;
+                
+                const riskLevel = strVal(zone.risk_level);
+                const color = riskLevel === 'HIGH' ? '#ef4444' :
+                              riskLevel === 'MEDIUM' ? '#f59e0b' : '#22c55e';
+                
+                const path = points.map((p, i) => (i === 0 ? 'M' : 'L') + p[0] + ',' + p[1]).join(' ') + ' Z';
+                const zoneName = strVal(zone.name);
+                
+                g.innerHTML += `
+                    <g class="zone-group" data-zone-id="${zone.id}">
+                        <path d="${path}" fill="${color}" fill-opacity="0.3" stroke="${color}" stroke-width="2"/>
+                        <text x="${points[0][0] + 10}" y="${points[0][1] + 20}" fill="${color}" font-size="12" font-weight="bold">${zoneName}</text>
+                    </g>
+                `;
+            } catch (e) { console.error('Zone parse error:', e, zone); }
+        });
+    }
+    
+    // Store active alerts for the current plan
+    let currentAlerts = [];
+    
+    function loadAlerts() {
+        fetch('/api/alerts/active')
+            .then(r => r.json())
+            .then(data => {
+                currentAlerts = data || [];
+                // Redraw cameras if plan is loaded
+                const planId = document.getElementById('level-select')?.value;
+                if (planId) loadPlan(planId);
+            })
+            .catch(err => console.error('Error loading alerts:', err));
+    }
+    
+    function drawCameras(cameras) {
+        const g = document.getElementById('plan-cameras');
+        g.innerHTML = '';
+        
+        cameras.forEach(cam => {
+            const x = floatVal(cam.x_plan) || 50;
+            const y = floatVal(cam.y_plan) || 50;
+            const streamUrl = strVal(cam.stream_url);
+            const camNameRaw = strVal(cam.name);
+            const isWebcam = streamUrl === 'webcam:local' || intVal(cam.is_webcam) === 1;
+            const baseColor = isWebcam ? '#7c3aed' : '#2563eb';
+            
+            // Check if this camera has an active alert
+            const alert = currentAlerts.find(a => intVal(a.camera_id) === cam.id);
+            const hasAlert = !!alert;
+            const alertLevel = alert ? strVal(alert.alert_level) : 'LOW';
+            
+            // Camera coverage zone (FOV cone)
+            const fov = floatVal(cam.fov) || 90;
+            const orientation = floatVal(cam.orientation) || 0;
+            const range = 80;
+            const startAngle = (orientation - fov/2) * Math.PI / 180;
+            const endAngle = (orientation + fov/2) * Math.PI / 180;
+            
+            const x1 = x + range * Math.cos(startAngle);
+            const y1 = y + range * Math.sin(startAngle);
+            const x2 = x + range * Math.cos(endAngle);
+            const y2 = y + range * Math.sin(endAngle);
+            const largeArc = fov > 180 ? 1 : 0;
+            
+            let coverageColor, coverageStroke, coverageOpacity;
+            if (hasAlert) {
+                if (alertLevel === 'HIGH' || alertLevel === 'CRITIQUE') {
+                    coverageColor = '#ef4444'; coverageStroke = '#dc2626'; coverageOpacity = 0.5;
+                } else if (alertLevel === 'MEDIUM' || alertLevel === 'ELEVE') {
+                    coverageColor = '#f59e0b'; coverageStroke = '#d97706'; coverageOpacity = 0.4;
+                } else {
+                    coverageColor = '#22c55e'; coverageStroke = '#16a34a'; coverageOpacity = 0.3;
+                }
+            } else {
+                coverageColor = baseColor; coverageStroke = baseColor; coverageOpacity = 0.15;
+            }
+            
+            const coveragePath = `M ${x},${y} L ${x1},${y1} A ${range},${range} 0 ${largeArc},1 ${x2},${y2} Z`;
+            const camName = camNameRaw.replace(/'/g, "\\'");
+            
+            let html = `<g class="camera-group" data-camera-id="${cam.id}" data-webcam="${isWebcam}">`;
+            html += `<path d="${coveragePath}" fill="${coverageColor}" fill-opacity="${coverageOpacity}" stroke="${coverageStroke}" stroke-width="${hasAlert ? 2 : 1}" stroke-opacity="${hasAlert ? 0.8 : 0.3}" class="camera-coverage ${hasAlert ? 'has-alert' : ''}"/>`;
+            html += `<g class="camera-marker" style="cursor: pointer;" onclick="openCamera(${cam.id}, ${isWebcam}, '${camName}')">`;
+            html += `<circle cx="${x}" cy="${y}" r="12" fill="${hasAlert ? coverageColor : baseColor}" fill-opacity="0.3" stroke="${hasAlert ? coverageColor : baseColor}" stroke-width="2"/>`;
+            html += `<circle cx="${x}" cy="${y}" r="6" fill="${hasAlert ? coverageColor : baseColor}"/>`;
+            if (hasAlert) {
+                html += `<circle cx="${x}" cy="${y}" r="18" fill="none" stroke="${coverageColor}" stroke-width="2" opacity="0.6"><animate attributeName="r" from="18" to="30" dur="1.5s" repeatCount="indefinite"/><animate attributeName="opacity" from="0.6" to="0" dur="1.5s" repeatCount="indefinite"/></circle>`;
+            }
+            html += `<text x="${x}" y="${y + 28}" text-anchor="middle" fill="#1e293b" font-size="9" font-weight="600">${camNameRaw}</text>`;
+            if (hasAlert) {
+                html += `<text x="${x}" y="${y + 40}" text-anchor="middle" fill="${coverageColor}" font-size="8" font-weight="bold">⚠ ALERTE</text>`;
+            }
+            html += `</g></g>`;
+            
+            g.innerHTML += html;
+        });
+    }
+    
+    function updateZoneTypes(zones) {
+        const types = [...new Set(zones.map(z => strVal(z.type)).filter(Boolean))];
+        const list = document.getElementById('zone-types-list');
+        
+        if (types.length === 0) {
+            list.innerHTML = '<span class="text-muted" style="font-size: 0.8rem;">Aucune zone</span>';
+            return;
+        }
+        
+        list.innerHTML = types.map(t => `
+            <div class="legend-item">
+                <span class="legend-icon"><i class="bi bi-hexagon"></i></span>
+                <span>${t}</span>
+            </div>
+        `).join('');
+    }
+    
+// ── Remplacer la fonction openCamera dans dashboard.html ─────────────────────
+// Cherche "function openCamera" et remplace tout le bloc par ceci :
+
+function openCamera(id, isWebcam, name) {
+    document.getElementById('camera-modal-name').textContent = name;
+
+    const alert = currentAlerts.find(a => intVal(a.camera_id) === id);
+    if (alert) {
+        const levelColor = strVal(alert.alert_level) === 'HIGH' ? 'danger' :
+                           strVal(alert.alert_level) === 'MEDIUM' ? 'warning' : 'success';
+        document.getElementById('camera-modal-status').innerHTML =
+            `<span class="badge bg-${levelColor}">Alerte ${strVal(alert.alert_level)}</span>`;
+    } else {
+        document.getElementById('camera-modal-status').textContent =
+            isWebcam ? 'Webcam locale' : 'Flux RTSP';
+    }
+
+    const video = document.getElementById('camera-video');
+    const modalBody = document.getElementById('camera-modal-body');
+
+    // Arrêter tout stream précédent
+    if (currentStream) {
+        currentStream.getTracks().forEach(t => t.stop());
+        currentStream = null;
+    }
+    video.style.display = 'none';
+    video.srcObject = null;
+
+    // Utiliser le flux MJPEG servi par Go (capturé par Python)
+    // Fonctionne pour webcam ET caméras RTSP sans conflit
+    const streamImg = document.getElementById('camera-stream-img');
+    if (streamImg) streamImg.remove();
+
+    const img = document.createElement('img');
+    img.id = 'camera-stream-img';
+    img.style.cssText = 'width:100%;max-height:70vh;object-fit:contain;display:block;';
+    img.src = `/api/cameras/${id}/stream`;
+    img.onerror = () => {
+        // Si le stream n'est pas dispo (IA pas encore démarrée), fallback snapshot
+        img.src = `/api/cameras/${id}/snapshot`;
+        img.onerror = () => {
+            img.style.display = 'none';
+            modalBody.querySelector('.camera-modal-info').insertAdjacentHTML('beforebegin',
+                `<div class="text-center p-4 text-white">
+                    <i class="bi bi-camera-video-off fs-1 mb-2 d-block"></i>
+                    <p>Flux non disponible</p>
+                    <small class="text-muted">L'IA démarre ou la caméra est hors ligne</small>
+                </div>`
+            );
+        };
+    };
+    modalBody.insertBefore(img, modalBody.firstChild);
+
+    new bootstrap.Modal(document.getElementById('cameraModal')).show();
+}
+
+// ── Modifier aussi l'aperçu des caméras dans loadCameraPreviews ──────────────
+// Remplacer le contenu de la camera-thumb par un snapshot live :
+
+function loadCameraPreviews(cameras) {
+    const grid = document.getElementById('camera-preview-grid');
+    grid.innerHTML = '';
+    cameras.slice(0, 6).forEach(cam => {
+        const streamUrl = strVal(cam.stream_url);
+        const camName = strVal(cam.name) || 'Caméra';
+        const isWebcam = streamUrl === 'webcam:local' || intVal(cam.is_webcam) === 1;
+
+        grid.innerHTML += `
+            <div class="camera-thumb" onclick="openCamera(${cam.id}, ${isWebcam}, '${camName.replace(/'/g,"\\'")}')">
+                <img src="/api/cameras/${cam.id}/snapshot"
+                     style="width:100%;height:100%;object-fit:cover;"
+                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                <div style="display:none;align-items:center;justify-content:center;height:100%;color:#64748b;">
+                    <i class="bi bi-${isWebcam ? 'webcam' : 'camera-video'} fs-3"></i>
+                </div>
+                <div class="camera-thumb-status"></div>
+                ${isWebcam ? '<div class="camera-thumb-webcam">Webcam</div>' : ''}
+                <div class="camera-thumb-label">${camName}</div>
+            </div>`;
+    });
+}
+
+// ── Nettoyer le stream quand le modal se ferme ────────────────────────────────
+// Remplacer le listener 'hidden.bs.modal' existant par :
+document.getElementById('cameraModal').addEventListener('hidden.bs.modal', () => {
+    if (currentStream) {
+        currentStream.getTracks().forEach(t => t.stop());
+        currentStream = null;
+    }
+    const img = document.getElementById('camera-stream-img');
+    if (img) {
+        img.src = '';  // Stopper le téléchargement MJPEG
+        img.remove();
+    }
+    const video = document.getElementById('camera-video');
+    video.srcObject = null;
+    video.style.display = 'none';
+});
+    
+    // Initialize
+    // Alert sound management
+    let alertSoundEnabled = true;
+    let alertSoundInterval = null;
+    
+    function playAlertSound() {
+        if (!alertSoundEnabled) return;
+        const audio = document.getElementById('alert-sound');
+        if (audio) {
+            // Use Web Audio API for better control
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = ctx.createOscillator();
+            const gain = ctx.createGain();
+            
+            oscillator.connect(gain);
+            gain.connect(ctx.destination);
+            
+            oscillator.frequency.value = 880; // A5 note
+            oscillator.type = 'sine';
+            gain.gain.value = 0.3;
+            
+            oscillator.start();
+            setTimeout(() => {
+                oscillator.frequency.value = 660; // E5 note
+            }, 150);
+            setTimeout(() => {
+                oscillator.stop();
+                ctx.close();
+            }, 300);
+        }
+    }
+    
+    function checkHighAlerts() {
+        const highAlerts = currentAlerts.filter(a => a.alert_level === 'HIGH' && a.status === 'new');
+        const banner = document.getElementById('alert-banner');
+        const bannerText = document.getElementById('alert-banner-text');
+        
+        if (highAlerts.length > 0) {
+            banner.style.display = 'block';
+            bannerText.textContent = `⚠️ ${highAlerts.length} ALERTE(S) CRITIQUE(S) DÉTECTÉE(S)`;
+            
+            // Play sound every 5 seconds
+            if (!alertSoundInterval && alertSoundEnabled) {
+                playAlertSound();
+                alertSoundInterval = setInterval(playAlertSound, 5000);
+            }
+        } else {
+            banner.style.display = 'none';
+            if (alertSoundInterval) {
+                clearInterval(alertSoundInterval);
+                alertSoundInterval = null;
+            }
+        }
+    }
+    
+    function muteAlert() {
+        alertSoundEnabled = false;
+        if (alertSoundInterval) {
+            clearInterval(alertSoundInterval);
+            alertSoundInterval = null;
+        }
+    }
+    
+    function dismissBanner() {
+        document.getElementById('alert-banner').style.display = 'none';
+        muteAlert();
+    }
+    
+    // Open alert modification modal
+    function openAlertModal(alertId, cameraName, level, status) {
+        document.getElementById('alert-id').value = alertId;
+        document.getElementById('alert-camera').value = cameraName;
+        document.getElementById('alert-level').value = level;
+        document.getElementById('alert-status').value = status;
+        new bootstrap.Modal(document.getElementById('alertModal')).show();
+    }
+    
+    function saveAlert() {
+        const id = document.getElementById('alert-id').value;
+        const level = document.getElementById('alert-level').value;
+        const status = document.getElementById('alert-status').value;
+        
+        fetch(`/api/alerts/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({level: level, status: status})
+        })
+        .then(r => {
+            if (r.ok) {
+                bootstrap.Modal.getInstance(document.getElementById('alertModal')).hide();
+                // Reload alerts
+                fetch('/api/alerts/active')
+                    .then(r => r.json())
+                    .then(data => {
+                        currentAlerts = data || [];
+                        const select = document.getElementById('level-select');
+                        loadPlan(select.value);
+                        checkHighAlerts();
+                    });
+            } else {
+                alert('Erreur lors de la mise \u00e0 jour');
+            }
+        });
+    }
+    
+    // ── Polling stats toutes les 5s ─────────────────────────────────────────
+    async function refreshStats() {
+        try {
+            const res = await fetch('/api/stats');
+            if (!res.ok) return;
+            const d = await res.json();
+            const sa = document.getElementById('stat-alerts');
+            const sc = document.getElementById('stat-cameras');
+            const sz = document.getElementById('stat-zones');
+            const sd = document.getElementById('stat-detections');
+            if (sa) sa.textContent = d.active_alerts  ?? sa.textContent;
+            if (sc) sc.textContent = d.total_cameras   ?? sc.textContent;
+            if (sz) sz.textContent = d.high_risk_zones ?? sz.textContent;
+            if (sd) sd.textContent = d.detections_today ?? sd.textContent;
+        } catch(e) {}
+
+        try {
+            const res2 = await fetch('/api/risk-events/pending/count');
+            if (!res2.ok) return;
+            const d2 = await res2.json();
+            const sp = document.getElementById('stat-pending');
+            if (sp) {
+                sp.textContent = d2.count ?? 0;
+                sp.style.color = (d2.count > 0) ? '#dc2626' : '#1e293b';
+            }
+        } catch(e) {}
+    }
+
+    // Fonction pour trier les plans et sélectionner le plan par défaut (Sous-sol -> RDC -> R+1...)
+    function sortAndSelectDefaultPlan() {
+        const select = document.getElementById('level-select');
+        if (!select || select.options.length <= 0) return null;
+        
+        const options = Array.from(select.options);
+        
+        // Fonction pour attribuer un score de priorité basé sur le nom du niveau
+        function getScore(text) {
+            const t = text.toLowerCase();
+            if (t.includes('sous-sol') || t.includes('sous sol') || t.includes('-1')) return -1;
+            if (t.includes('rdc') || t.includes('rez')) return 0;
+            const rMatch = t.match(/r\+(\d+)/);
+            if (rMatch) return parseInt(rMatch[1]);
+            const nMatch = t.match(/niveau (\d+)/);
+            if (nMatch) return parseInt(nMatch[1]);
+            return 999;
+        }
+        
+        // Trier les options
+        options.sort((a, b) => {
+            const scoreA = getScore(a.text);
+            const scoreB = getScore(b.text);
+            if (scoreA !== scoreB) return scoreA - scoreB;
+            return a.text.localeCompare(b.text);
+        });
+        
+        // Réinsérer les options triées dans le select
+        select.innerHTML = '';
+        options.forEach(opt => select.appendChild(opt));
+        
+        // Sélectionner le premier élément par défaut
+        select.selectedIndex = 0;
+        return select.value;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        planViewer.init();
+        loadChart('week');
+        refreshStats();
+        setInterval(refreshStats, 5000);
+        
+        // Load alerts first, then load plan
+        fetch('/api/alerts/active')
+            .then(r => r.json())
+            .then(data => {
+                currentAlerts = data || [];
+                checkHighAlerts();
+                const defaultVal = sortAndSelectDefaultPlan();
+                if (defaultVal) {
+                    loadPlan(defaultVal);
+                }
+            })
+            .catch(() => {
+                currentAlerts = [];
+                const defaultVal = sortAndSelectDefaultPlan();
+                if (defaultVal) {
+                    loadPlan(defaultVal);
+                }
+            });
+    });
+    </script>
+</body>
+</html>
+{{end}}

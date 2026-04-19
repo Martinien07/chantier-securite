@@ -13,16 +13,18 @@ import (
 // getFrameDir retourne le dossier data/frames du projet Python.
 // Utilise DETECTION_SCRIPT_PATH pour déduire le chemin automatiquement.
 func getFrameDir() string {
-	// Depuis DETECTION_SCRIPT_PATH on remonte vers data/frames
+	// hse_acquisition_manager.py est dans inference/
+	// Il calcule frame_dir = os.path.dirname(__file__) / data / frames
+	// = TOURMANT 1/inference/data/frames/
 	scriptPath := os.Getenv("DETECTION_SCRIPT_PATH")
 	if scriptPath != "" {
-		// .../TOURMANT 1/system_automatic/main_ai_bridge.py
-		// → .../TOURMANT 1/data/frames
-		root := filepath.Dir(filepath.Dir(scriptPath))
-		return filepath.Join(root, "data", "frames")
+		// DETECTION_SCRIPT_PATH = .../TOURMANT 1/system_automatic/main_ai_bridge.py
+		// inference/ est au même niveau que system_automatic/
+		tourmant1 := filepath.Dir(filepath.Dir(scriptPath))
+		return filepath.Join(tourmant1, "inference", "data", "frames")
 	}
 	// Fallback : chemin absolu connu
-	return `D:\ETUDEµ\CITE\ETAPE4\PROJET DE FIN DE SESSION\TOURMANT 1\data\frames`
+	return `D:\ETUDEµ\CITE\ETAPE4\PROJET DE FIN DE SESSION\TOURMANT 1\inference\data\frames`
 }
 
 // HandleCameraStream — GET /api/cameras/{id}/stream

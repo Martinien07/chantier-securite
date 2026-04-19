@@ -297,39 +297,106 @@
             color: white;
             padding: 2rem 1rem 1rem;
         }
-        /* Alert banner */
+        /* Alert banner latérale droite */
+        /* Bannière carrée 1/10 en haut à droite */
         .alert-banner {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
+            top: 12px;
+            right: 12px;
+            width: 10vw;
+            min-width: 120px;
+            max-width: 160px;
             z-index: 9999;
-            background: linear-gradient(90deg, #dc2626 0%, #ef4444 50%, #dc2626 100%);
+            background: rgba(220, 38, 38, 0.92);
+            backdrop-filter: blur(4px);
             color: white;
-            padding: 1rem;
-            animation: alertPulse 1s ease-in-out infinite;
-        }
-        @keyframes alertPulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.8; }
-        }
-        .alert-banner-content {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: center;
-            gap: 1rem;
-            font-weight: 600;
-            font-size: 1.1rem;
+            padding: 10px 8px 8px;
+            gap: 6px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(220,38,38,0.5);
+            cursor: pointer;
+            transition: background .4s;
+            animation: bannerPop 2s ease-in-out infinite;
         }
-        .alert-banner i {
-            font-size: 1.5rem;
-            animation: shake 0.5s ease-in-out infinite;
+        .alert-banner.acknowledged {
+            background: rgba(217, 119, 6, 0.92);
+            box-shadow: 0 4px 20px rgba(217,119,6,0.4);
+            animation: none;
         }
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
+        @keyframes bannerPop {
+            0%,100% { transform: scale(1);   box-shadow: 0 4px 20px rgba(220,38,38,0.4); }
+            50%      { transform: scale(1.03); box-shadow: 0 4px 28px rgba(220,38,38,0.8); }
         }
+        .banner-bell {
+            font-size: 1.6rem;
+            animation: bellShake 1s ease-in-out infinite;
+        }
+        .alert-banner.acknowledged .banner-bell { animation: none; opacity:.7; }
+        @keyframes bellShake {
+            0%,100% { transform: rotate(0deg); }
+            20%      { transform: rotate(-18deg); }
+            40%      { transform: rotate(18deg); }
+            60%      { transform: rotate(-9deg); }
+            80%      { transform: rotate(9deg); }
+        }
+        .banner-count {
+            font-size: 1.8rem;
+            font-weight: 900;
+            line-height: 1;
+        }
+        .banner-items {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+        .banner-item {
+            background: rgba(255,255,255,.15);
+            border-radius: 4px;
+            padding: 3px 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-align: center;
+            line-height: 1.3;
+        }
+        .banner-item span {
+            display: block;
+            font-size: 9px;
+            font-weight: 400;
+            opacity: .85;
+        }
+        .banner-divider {
+            width: 80%;
+            height: 1px;
+            background: rgba(255,255,255,.3);
+        }
+        .banner-link {
+            font-size: 10px;
+            color: rgba(255,255,255,.95);
+            text-decoration: none;
+            background: rgba(255,255,255,.2);
+            border-radius: 4px;
+            padding: 3px 8px;
+            width: 100%;
+            text-align: center;
+        }
+        .banner-mute {
+            background: rgba(255,255,255,.15);
+            border: none;
+            color: white;
+            border-radius: 4px;
+            padding: 3px 6px;
+            font-size: 9px;
+            cursor: pointer;
+            width: 100%;
+            text-align: center;
+        }
+        .banner-mute:hover { background: rgba(255,255,255,.3); }
         
         /* Alert card clickable */
         .alert-item {
@@ -340,6 +407,13 @@
             transform: translateX(5px);
             box-shadow: -3px 0 10px rgba(0,0,0,0.1);
         }
+        /* Légende bannière dans la légende du plan */
+        .legend-alert-dot {
+            width:12px;height:12px;border-radius:50%;
+            background:#dc2626;display:inline-block;
+            animation:legendPulse 1.5s infinite;
+        }
+        @keyframes legendPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.4)}}
     </style>
 </head>
 <body>
@@ -411,6 +485,7 @@
                                 <image id="plan-image" x="0" y="0" width="800" height="600" href=""/>
                                 <g id="plan-zones"></g>
                                 <g id="plan-cameras"></g>
+                                <g id="plan-persons"></g>
                             </svg>
                         </div>
                         <div class="zoom-indicator" id="zoom-indicator">100%</div>
@@ -455,6 +530,13 @@
                             </div>
                         </div>
                         
+                        <div class="legend-section">
+                            <div class="legend-section-title">Incidents</div>
+                            <div class="legend-item">
+                                <span class="legend-alert-dot"></span>
+                                <span>Position personne</span>
+                            </div>
+                        </div>
                         <div class="mt-auto pt-3 border-top">
                             <div class="text-muted" style="font-size: 0.75rem;">
                                 <i class="bi bi-info-circle"></i> Cliquez sur une caméra pour voir le flux en direct
@@ -554,14 +636,23 @@
         </div>
     </div>
     
-    <!-- Alert banner for HIGH alerts -->
-    <div id="alert-banner" class="alert-banner" style="display: none;">
-        <div class="alert-banner-content">
-            <i class="bi bi-exclamation-triangle-fill"></i>
-            <span id="alert-banner-text">ALERTE CRITIQUE DÉTECTÉE</span>
-            <button class="btn btn-sm btn-outline-light ms-3" onclick="muteAlert()"><i class="bi bi-volume-mute"></i> Couper le son</button>
-            <button class="btn btn-sm btn-light ms-2" onclick="dismissBanner()"><i class="bi bi-x"></i></button>
-        </div>
+    <!-- Bannière carrée haut-droite — alertes critiques -->
+    <div id="alert-banner" class="alert-banner" style="display:none;"
+         onclick="window.location='/alertes'">
+        <div class="banner-bell"><i class="bi bi-bell-fill"></i></div>
+        <div class="banner-count" id="banner-count">0</div>
+        <div class="banner-divider"></div>
+        <!-- Liste de tous les incidents -->
+        <div class="banner-items" id="banner-items"></div>
+        <div class="banner-divider"></div>
+        <a class="banner-link" href="/alertes" onclick="event.stopPropagation()">
+            <i class="bi bi-arrow-right-circle"></i> Voir alertes
+        </a>
+        <button class="banner-mute" id="banner-mute-btn"
+                onclick="event.stopPropagation(); toggleMute()">
+            <i class="bi bi-volume-mute-fill" id="mute-icon"></i>
+            <span id="mute-label">Son actif</span>
+        </button>
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -671,6 +762,7 @@
     
     // Load plan data
     function loadPlan(planId) {
+        currentPlanId = parseInt(planId);
         fetch(`/api/plans/${planId}/data`)
             .then(r => r.json())
             .then(data => {
@@ -694,6 +786,7 @@
                         // Draw zones and cameras after viewBox is set
                         drawZones(data.zones || []);
                         drawCameras(data.cameras || []);
+                        drawPersonLocations(currentLocations);
                         updateZoneTypes(data.zones || []);
                         loadCameraPreviews(data.cameras || []);
                         
@@ -705,6 +798,7 @@
                         planImage.setAttribute('href', data.plan.image_path);
                         drawZones(data.zones || []);
                         drawCameras(data.cameras || []);
+                        drawPersonLocations(currentLocations);
                         updateZoneTypes(data.zones || []);
                         loadCameraPreviews(data.cameras || []);
                         planViewer.reset();
@@ -768,19 +862,27 @@
         });
     }
     
-    // Store active alerts for the current plan
-    let currentAlerts = [];
+    // Store active alerts + pending locations
+    let currentAlerts    = [];
+    let currentLocations = [];
+    let currentPlanId    = null;
     
     function loadAlerts() {
-        fetch('/api/alerts/active')
-            .then(r => r.json())
-            .then(data => {
-                currentAlerts = data || [];
-                // Redraw cameras if plan is loaded
-                const planId = document.getElementById('level-select')?.value;
-                if (planId) loadPlan(planId);
-            })
-            .catch(err => console.error('Error loading alerts:', err));
+        Promise.all([
+            fetch('/api/alerts/active').then(function(r){ return r.json(); }).catch(function(){ return []; }),
+            fetch('/api/pending-locations').then(function(r){ return r.json(); }).catch(function(){ return []; })
+        ]).then(function(results) {
+            currentAlerts    = Array.isArray(results[0]) ? results[0] : [];
+            currentLocations = Array.isArray(results[1]) ? results[1] : [];
+
+            updateBanner(currentLocations);
+
+            // Toujours recharger le plan pour mettre à jour les marqueurs
+            var sel = document.getElementById('level-select');
+            if (sel && sel.value) {
+                loadPlan(sel.value);
+            }
+        }).catch(function(err){ console.error('Error loading alerts:', err); });
     }
     
     function drawCameras(cameras) {
@@ -867,6 +969,8 @@
 // ── Remplacer la fonction openCamera dans dashboard.html ─────────────────────
 // Cherche "function openCamera" et remplace tout le bloc par ceci :
 
+var _modalCamPoll = null;
+
 function openCamera(id, isWebcam, name) {
     document.getElementById('camera-modal-name').textContent = name;
 
@@ -881,41 +985,30 @@ function openCamera(id, isWebcam, name) {
             isWebcam ? 'Webcam locale' : 'Flux RTSP';
     }
 
-    const video = document.getElementById('camera-video');
+    const video    = document.getElementById('camera-video');
     const modalBody = document.getElementById('camera-modal-body');
-
-    // Arrêter tout stream précédent
-    if (currentStream) {
-        currentStream.getTracks().forEach(t => t.stop());
-        currentStream = null;
-    }
     video.style.display = 'none';
-    video.srcObject = null;
+    video.srcObject     = null;
 
-    // Utiliser le flux MJPEG servi par Go (capturé par Python)
-    // Fonctionne pour webcam ET caméras RTSP sans conflit
-    const streamImg = document.getElementById('camera-stream-img');
-    if (streamImg) streamImg.remove();
+    // Supprimer l'ancien img si présent
+    const old = document.getElementById('camera-stream-img');
+    if (old) old.remove();
 
+    // Créer l'img pour le polling snapshot
     const img = document.createElement('img');
     img.id = 'camera-stream-img';
-    img.style.cssText = 'width:100%;max-height:70vh;object-fit:contain;display:block;';
-    img.src = `/api/cameras/${id}/stream`;
-    img.onerror = () => {
-        // Si le stream n'est pas dispo (IA pas encore démarrée), fallback snapshot
-        img.src = `/api/cameras/${id}/snapshot`;
-        img.onerror = () => {
-            img.style.display = 'none';
-            modalBody.querySelector('.camera-modal-info').insertAdjacentHTML('beforebegin',
-                `<div class="text-center p-4 text-white">
-                    <i class="bi bi-camera-video-off fs-1 mb-2 d-block"></i>
-                    <p>Flux non disponible</p>
-                    <small class="text-muted">L'IA démarre ou la caméra est hors ligne</small>
-                </div>`
-            );
-        };
-    };
+    img.style.cssText = 'width:100%;max-height:70vh;object-fit:contain;display:block;background:#000;';
+    img.src = '/api/cameras/' + id + '/snapshot?' + Date.now();
     modalBody.insertBefore(img, modalBody.firstChild);
+
+    // Polling snapshot toutes les 100ms (10 FPS)
+    if (_modalCamPoll) clearInterval(_modalCamPoll);
+    _modalCamPoll = setInterval(function() {
+        var n = new Image();
+        n.onload = function() { img.src = n.src; };
+        n.onerror = function() {}; // silencieux
+        n.src = '/api/cameras/' + id + '/snapshot?' + Date.now();
+    }, 100);
 
     new bootstrap.Modal(document.getElementById('cameraModal')).show();
 }
@@ -925,110 +1018,306 @@ function openCamera(id, isWebcam, name) {
 
 function loadCameraPreviews(cameras) {
     const grid = document.getElementById('camera-preview-grid');
-    grid.innerHTML = '';
-    cameras.slice(0, 6).forEach(cam => {
-        const streamUrl = strVal(cam.stream_url);
-        const camName = strVal(cam.name) || 'Caméra';
-        const isWebcam = streamUrl === 'webcam:local' || intVal(cam.is_webcam) === 1;
 
-        grid.innerHTML += `
-            <div class="camera-thumb" onclick="openCamera(${cam.id}, ${isWebcam}, '${camName.replace(/'/g,"\\'")}')">
-                <img src="/api/cameras/${cam.id}/snapshot"
-                     style="width:100%;height:100%;object-fit:cover;"
-                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-                <div style="display:none;align-items:center;justify-content:center;height:100%;color:#64748b;">
-                    <i class="bi bi-${isWebcam ? 'webcam' : 'camera-video'} fs-3"></i>
-                </div>
-                <div class="camera-thumb-status"></div>
-                ${isWebcam ? '<div class="camera-thumb-webcam">Webcam</div>' : ''}
-                <div class="camera-thumb-label">${camName}</div>
-            </div>`;
-    });
+    // Créer les thumbs seulement la première fois
+    if (grid.children.length !== Math.min(cameras.length, 6)) {
+        grid.innerHTML = '';
+        cameras.slice(0, 6).forEach(cam => {
+            const streamUrl = strVal(cam.stream_url);
+            const camName = strVal(cam.name) || 'Caméra';
+            const isWebcam = streamUrl === 'webcam:local' || intVal(cam.is_webcam) === 1;
+            grid.innerHTML += `
+                <div class="camera-thumb" onclick="openCamera(${cam.id}, ${isWebcam}, '${camName.replace(/'/g,"\'")}')">
+                    <img id="thumb-${cam.id}"
+                         src="/api/cameras/${cam.id}/snapshot?t=${Date.now()}"
+                         style="width:100%;height:100%;object-fit:cover;"
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                    <div style="display:none;align-items:center;justify-content:center;height:100%;color:#64748b;">
+                        <i class="bi bi-${isWebcam ? 'webcam' : 'camera-video'} fs-3"></i>
+                    </div>
+                    <div class="camera-thumb-status"></div>
+                    ${isWebcam ? '<div class="camera-thumb-webcam">Webcam</div>' : ''}
+                    <div class="camera-thumb-label">${camName}</div>
+                </div>`;
+        });
+
+        // Polling 200ms sur les thumbnails
+        if (window._thumbPoll) clearInterval(window._thumbPoll);
+        window._thumbPoll = setInterval(function() {
+            cameras.slice(0, 6).forEach(cam => {
+                var img = document.getElementById('thumb-' + cam.id);
+                if (!img || img.style.display === 'none') return;
+                var n = new Image();
+                n.onload = function() { img.src = n.src; };
+                n.src = '/api/cameras/' + cam.id + '/snapshot?t=' + Date.now();
+            });
+        }, 200);
+    }
 }
 
 // ── Nettoyer le stream quand le modal se ferme ────────────────────────────────
 // Remplacer le listener 'hidden.bs.modal' existant par :
 document.getElementById('cameraModal').addEventListener('hidden.bs.modal', () => {
-    if (currentStream) {
-        currentStream.getTracks().forEach(t => t.stop());
-        currentStream = null;
-    }
+    // Arrêter le polling snapshot
+    if (_modalCamPoll) { clearInterval(_modalCamPoll); _modalCamPoll = null; }
     const img = document.getElementById('camera-stream-img');
-    if (img) {
-        img.src = '';  // Stopper le téléchargement MJPEG
-        img.remove();
-    }
+    if (img) { img.src = ''; img.remove(); }
     const video = document.getElementById('camera-video');
     video.srcObject = null;
     video.style.display = 'none';
 });
     
-    // Initialize
-    // Alert sound management
+    // ── Son et bannière ────────────────────────────────────────────────────────
     let alertSoundEnabled = true;
-    let alertSoundInterval = null;
-    
+    let notifiedIds       = new Set();
+
     function playAlertSound() {
         if (!alertSoundEnabled) return;
-        const audio = document.getElementById('alert-sound');
-        if (audio) {
-            // Use Web Audio API for better control
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = ctx.createOscillator();
-            const gain = ctx.createGain();
-            
-            oscillator.connect(gain);
+        try {
+            var ctx  = new (window.AudioContext || window.webkitAudioContext)();
+            var osc  = ctx.createOscillator();
+            var gain = ctx.createGain();
+            osc.connect(gain);
             gain.connect(ctx.destination);
-            
-            oscillator.frequency.value = 880; // A5 note
-            oscillator.type = 'sine';
-            gain.gain.value = 0.3;
-            
-            oscillator.start();
-            setTimeout(() => {
-                oscillator.frequency.value = 660; // E5 note
-            }, 150);
-            setTimeout(() => {
-                oscillator.stop();
-                ctx.close();
-            }, 300);
-        }
+            osc.frequency.value = 880;
+            osc.type = 'sine';
+            gain.gain.value = 0.35;
+            osc.start();
+            setTimeout(function(){ osc.frequency.value = 1100; }, 120);
+            setTimeout(function(){ osc.frequency.value = 880;  }, 240);
+            setTimeout(function(){ osc.frequency.value = 1100; }, 360);
+            setTimeout(function(){ osc.stop(); ctx.close(); }, 500);
+        } catch(e) {}
     }
-    
-    function checkHighAlerts() {
-        const highAlerts = currentAlerts.filter(a => a.alert_level === 'HIGH' && a.status === 'new');
-        const banner = document.getElementById('alert-banner');
-        const bannerText = document.getElementById('alert-banner-text');
-        
-        if (highAlerts.length > 0) {
-            banner.style.display = 'block';
-            bannerText.textContent = `⚠️ ${highAlerts.length} ALERTE(S) CRITIQUE(S) DÉTECTÉE(S)`;
-            
-            // Play sound every 5 seconds
-            if (!alertSoundInterval && alertSoundEnabled) {
-                playAlertSound();
-                alertSoundInterval = setInterval(playAlertSound, 5000);
+
+    function toggleMute() {
+        alertSoundEnabled = !alertSoundEnabled;
+        var icon  = document.getElementById('mute-icon');
+        var label = document.getElementById('mute-label');
+        if (alertSoundEnabled) {
+            icon.className  = 'bi bi-volume-mute-fill';
+            label.textContent = 'Son actif';
+            // Reprendre le son si incidents critiques actifs
+            if (currentLocations && currentLocations.length > 0) {
+                updateBanner(currentLocations);
             }
         } else {
+            icon.className  = 'bi bi-volume-mute';
+            label.textContent = 'Son coupé';
+            if (soundInterval) { clearInterval(soundInterval); soundInterval = null; }
+        }
+    }
+
+    // Son continu toutes les 5s tant que CRITIQUE et non pris en charge
+    var soundInterval   = null;
+    // Timer de 10min par incident "correcting" : {id: timeoutHandle}
+    var revertTimers    = {};
+
+    function updateBanner(locations) {
+        var banner = document.getElementById('alert-banner');
+
+        // Inclure aussi les alertes "correcting" (pris en charge)
+        // qui doivent rester visibles en orange
+        if (!locations || locations.length === 0) {
             banner.style.display = 'none';
-            if (alertSoundInterval) {
-                clearInterval(alertSoundInterval);
-                alertSoundInterval = null;
+            notifiedIds.clear();
+            if (soundInterval) { clearInterval(soundInterval); soundInterval = null; }
+            return;
+        }
+
+        // Trier : CRITIQUE/pending d'abord, correcting ensuite
+        var sorted = locations.slice().sort(function(a, b) {
+            var la = (a.risk_level || '').toUpperCase();
+            var lb = (b.risk_level || '').toUpperCase();
+            var sa = (a.status || 'pending');
+            var sb = (b.status || 'pending');
+            if (sa === 'pending' && sb !== 'pending') return -1;
+            if (sb === 'pending' && sa !== 'pending') return 1;
+            if (la.indexOf('CRIT') !== -1 && lb.indexOf('CRIT') === -1) return -1;
+            if (lb.indexOf('CRIT') !== -1 && la.indexOf('CRIT') === -1) return 1;
+            return 0;
+        });
+
+        var top      = sorted[0];
+        var topStatus = top.status || 'pending';
+        var isCrit   = (top.risk_level || '').toUpperCase().indexOf('CRIT') !== -1
+                    || (top.risk_level || '').toUpperCase().indexOf('HIGH') !== -1;
+        var isAck    = topStatus === 'correcting' || topStatus === 'accepted';
+
+        banner.style.display = 'flex';
+        banner.className = 'alert-banner' + (isAck ? ' acknowledged' : '');
+
+        // Compteur
+        document.getElementById('banner-count').textContent = locations.length;
+        var sp = document.getElementById('stat-pending');
+        if (sp) {
+            sp.textContent = locations.length;
+            sp.style.color = locations.length > 0 ? '#dc2626' : '#1e293b';
+        }
+
+        // Lister tous les incidents
+        var itemsHtml = '';
+        sorted.forEach(function(loc) {
+            var lvl = (loc.risk_level || '—').toUpperCase();
+            var cam = loc.camera_name || ('Cam ' + loc.camera_id);
+            var sts = loc.status || 'pending';
+            var statusIcon = sts === 'correcting' ? ' 🔧' : sts === 'pending' ? ' ⚠' : '';
+            itemsHtml += '<div class="banner-item">'
+                       + lvl + statusIcon
+                       + '<span>' + cam + '</span>'
+                       + '</div>';
+        });
+        document.getElementById('banner-items').innerHTML = itemsHtml;
+
+        // Son : uniquement si pending CRITIQUE et son actif
+        var hasPendingCrit = sorted.some(function(l) {
+            return (l.status || 'pending') === 'pending'
+                && ((l.risk_level || '').toUpperCase().indexOf('CRIT') !== -1
+                 || (l.risk_level || '').toUpperCase().indexOf('HIGH') !== -1);
+        });
+
+        if (hasPendingCrit && alertSoundEnabled) {
+            if (!soundInterval) {
+                playAlertSound();
+                soundInterval = setInterval(function() {
+                    if (alertSoundEnabled) playAlertSound();
+                }, 5000);
             }
+        } else {
+            if (soundInterval) { clearInterval(soundInterval); soundInterval = null; }
         }
+
+        // ── Timer 10min : si correcting, retourner à pending après 10min ──────
+        sorted.forEach(function(loc) {
+            var id  = loc.risk_event_id;
+            var sts = loc.status || 'pending';
+            if (sts === 'correcting' || sts === 'accepted') {
+                if (!revertTimers[id]) {
+                    revertTimers[id] = setTimeout(function() {
+                        // Remettre à pending via API
+                        fetch('/api/risk-events/' + id + '/revert-to-pending', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ comment: 'Retour automatique — non résolu après 10 minutes' })
+                        }).then(function() {
+                            delete revertTimers[id];
+                            loadAlerts(); // Recharger pour reprendre le son
+                        }).catch(function() { delete revertTimers[id]; });
+                    }, 10 * 60 * 1000); // 10 minutes
+                }
+            } else {
+                // Plus en correcting → annuler le timer
+                if (revertTimers[id]) {
+                    clearTimeout(revertTimers[id]);
+                    delete revertTimers[id];
+                }
+            }
+        });
+
+        // Nettoyer timers pour incidents disparus
+        Object.keys(revertTimers).forEach(function(id) {
+            var stillActive = sorted.some(function(l) { return l.risk_event_id == id; });
+            if (!stillActive) {
+                clearTimeout(revertTimers[id]);
+                delete revertTimers[id];
+            }
+        });
+
+        // Nettoyer notifiedIds obsolètes
+        var activeKeys = new Set(sorted.map(function(l){ return 're-' + l.risk_event_id; }));
+        notifiedIds.forEach(function(k){
+            if (!activeKeys.has(k)) notifiedIds.delete(k);
+        });
     }
-    
-    function muteAlert() {
-        alertSoundEnabled = false;
-        if (alertSoundInterval) {
-            clearInterval(alertSoundInterval);
-            alertSoundInterval = null;
-        }
-    }
-    
-    function dismissBanner() {
-        document.getElementById('alert-banner').style.display = 'none';
-        muteAlert();
+
+    // ── Localisation sur le plan ──────────────────────────────────────────────
+    function drawPersonLocations(locations) {
+        var g = document.getElementById('plan-persons');
+        if (!g) return;
+        g.innerHTML = '';
+
+        if (!locations || locations.length === 0) return;
+
+        // Filtrer uniquement les incidents dont la caméra est sur le plan courant
+        // On compare le plan_id retourné par l'API avec le plan sélectionné
+        var filtered = locations.filter(function(loc) {
+            // Si l'API retourne plan_id, comparer directement
+            if (loc.plan_id && currentPlanId) {
+                return loc.plan_id === currentPlanId;
+            }
+            // Fallback : comparer plan_level avec l'option sélectionnée
+            var sel = document.getElementById('level-select');
+            if (!sel) return true;
+            var selectedText = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+            return !loc.plan_level || selectedText.indexOf(loc.plan_level) !== -1 || loc.plan_level.indexOf(selectedText) !== -1;
+        });
+
+        if (!filtered || filtered.length === 0) return;
+        // Remplacer locations par filtered pour le reste de la fonction
+        locations = filtered;
+
+        // Récupérer le viewBox courant pour savoir l'échelle
+        var svg     = document.getElementById('plan-svg');
+        var vb      = svg.getAttribute('viewBox').split(' ');
+        var vbW     = parseFloat(vb[2]) || 800;
+        var vbH     = parseFloat(vb[3]) || 600;
+
+        locations.forEach(function(loc) {
+            var px, py;
+
+            if (loc.plan_x !== null && loc.plan_y !== null && loc.plan_x !== undefined) {
+                // Projeter les coordonnées métriques (pts_plan) en pixels SVG
+                // Le plan de cam 11 couvre x:[7.5-13m], y:[12-16m] → zone RDC devant cam
+                // On normalise par rapport aux bornes connues du bâtiment
+                // Bâtiment approximatif : x:[0-33m], y:[0-18m]
+                var buildW = 51.0;  // largeur réelle RDC en mètres
+                var buildH = 20.0;  // hauteur réelle RDC en mètres
+                var scaleX = vbW / buildW;
+                var scaleY = vbH / buildH;
+                // plan_x/plan_y sont les coordonnées métriques du pied de la personne
+                px = loc.plan_x * scaleX;
+                py = loc.plan_y * scaleY;
+            } else if (loc.foot_x > 0 && loc.foot_y > 0) {
+                // Fallback : position caméra approximative
+                px = loc.foot_x;
+                py = loc.foot_y;
+            } else {
+                return;
+            }
+
+            var lvl      = (loc.risk_level || '').toUpperCase();
+            var isCrit   = lvl.indexOf('CRIT') !== -1 || lvl.indexOf('HIGH') !== -1;
+            var color    = isCrit ? '#dc2626' : '#f59e0b';
+            var label    = loc.camera_name || 'Cam';
+
+            // Ellipse de présence probable (zone probable)
+            var rx = 25, ry = 18;
+            g.innerHTML += '<ellipse cx="' + px + '" cy="' + py + '" rx="' + rx + '" ry="' + ry + '"'
+                         + ' fill="' + color + '" fill-opacity="0.2" stroke="' + color + '" stroke-width="1.5" stroke-dasharray="4,2">'
+                         + '<animate attributeName="rx" values="' + rx + ';' + (rx+8) + ';' + rx + '" dur="2s" repeatCount="indefinite"/>'
+                         + '<animate attributeName="ry" values="' + ry + ';' + (ry+6) + ';' + ry + '" dur="2s" repeatCount="indefinite"/>'
+                         + '<animate attributeName="fill-opacity" values="0.2;0.4;0.2" dur="2s" repeatCount="indefinite"/>'
+                         + '</ellipse>';
+
+            // Point de position exacte (pied de la personne)
+            g.innerHTML += '<circle cx="' + px + '" cy="' + py + '" r="6"'
+                         + ' fill="' + color + '" stroke="white" stroke-width="2">'
+                         + '<animate attributeName="r" values="6;9;6" dur="1.5s" repeatCount="indefinite"/>'
+                         + '</circle>';
+
+            // Halo extérieur pulsant
+            g.innerHTML += '<circle cx="' + px + '" cy="' + py + '" r="14"'
+                         + ' fill="none" stroke="' + color + '" stroke-width="2" opacity="0.7">'
+                         + '<animate attributeName="r" from="14" to="28" dur="1.5s" repeatCount="indefinite"/>'
+                         + '<animate attributeName="opacity" from="0.7" to="0" dur="1.5s" repeatCount="indefinite"/>'
+                         + '</circle>';
+
+            // Étiquette
+            g.innerHTML += '<text x="' + px + '" y="' + (py - 16) + '"'
+                         + ' text-anchor="middle" fill="' + color + '"'
+                         + ' font-size="9" font-weight="bold"'
+                         + ' style="text-shadow:0 1px 2px rgba(0,0,0,.5)">⚠ ' + label + '</text>';
+        });
     }
     
     // Open alert modification modal
@@ -1096,66 +1385,40 @@ document.getElementById('cameraModal').addEventListener('hidden.bs.modal', () =>
         } catch(e) {}
     }
 
-    // Fonction pour trier les plans et sélectionner le plan par défaut (Sous-sol -> RDC -> R+1...)
-    function sortAndSelectDefaultPlan() {
-        const select = document.getElementById('level-select');
-        if (select.options.length <= 0) return null;
-        
-        const options = Array.from(select.options);
-        
-        // Fonction pour attribuer un score de priorité basé sur le nom du niveau
-        function getScore(text) {
-            const t = text.toLowerCase();
-            if (t.includes('sous-sol') || t.includes('sous sol') || t.includes('-1')) return -1;
-            if (t.includes('rdc') || t.includes('rez')) return 0;
-            const rMatch = t.match(/r\+(\d+)/);
-            if (rMatch) return parseInt(rMatch[1]);
-            const nMatch = t.match(/niveau (\d+)/);
-            if (nMatch) return parseInt(nMatch[1]);
-            return 999;
-        }
-        
-        // Trier les options
-        options.sort((a, b) => {
-            const scoreA = getScore(a.text);
-            const scoreB = getScore(b.text);
-            if (scoreA !== scoreB) return scoreA - scoreB;
-            return a.text.localeCompare(b.text);
-        });
-        
-        // Réinsérer les options triées dans le select
-        select.innerHTML = '';
-        options.forEach(opt => select.appendChild(opt));
-        
-        // Sélectionner le premier élément par défaut
-        select.selectedIndex = 0;
-        return select.value;
-    }
-
     document.addEventListener('DOMContentLoaded', () => {
         planViewer.init();
         loadChart('week');
         refreshStats();
         setInterval(refreshStats, 5000);
         
-        // Load alerts first, then load plan
-        fetch('/api/alerts/active')
-            .then(r => r.json())
-            .then(data => {
-                currentAlerts = data || [];
-                checkHighAlerts();
-                const defaultVal = sortAndSelectDefaultPlan();
-                if (defaultVal) {
-                    loadPlan(defaultVal);
-                }
-            })
-            .catch(() => {
-                currentAlerts = [];
-                const defaultVal = sortAndSelectDefaultPlan();
-                if (defaultVal) {
-                    loadPlan(defaultVal);
-                }
+        // Trier les plans : Sous-sol → RDC → R+1 → R+2...
+        var sel = document.getElementById('level-select');
+        if (sel && sel.options.length > 0) {
+            var opts = Array.from(sel.options);
+            opts.sort(function(a, b) {
+                var ta = a.text.toUpperCase();
+                var tb = b.text.toUpperCase();
+                // Sous-sol en premier
+                var ssa = ta.indexOf('SOUS') !== -1 || ta.indexOf('SS') !== -1 || ta.indexOf('B') === 0;
+                var ssb = tb.indexOf('SOUS') !== -1 || tb.indexOf('SS') !== -1 || tb.indexOf('B') === 0;
+                if (ssa && !ssb) return -1;
+                if (ssb && !ssa) return 1;
+                // RDC avant R+1
+                var rdca = ta.indexOf('RDC') !== -1 || ta.indexOf('REZ') !== -1 || ta === '0';
+                var rdcb = tb.indexOf('RDC') !== -1 || tb.indexOf('REZ') !== -1 || tb === '0';
+                if (rdca && !rdcb) return -1;
+                if (rdcb && !rdca) return 1;
+                // Sinon tri alphabétique
+                return a.text.localeCompare(b.text);
             });
+            // Réinsérer dans l'ordre trié
+            opts.forEach(function(o) { sel.appendChild(o); });
+            sel.selectedIndex = 0;
+            loadPlan(sel.options[0].value);
+        }
+        // Charger alertes + positions (va aussi redessiner le plan)
+        loadAlerts();
+        setInterval(loadAlerts, 10000);
     });
     </script>
 </body>

@@ -1,0 +1,100 @@
+{{define "admin_plans"}}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeSite AI - Plans</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="/static/style.css" rel="stylesheet">
+</head>
+<body>
+    <div class="d-flex">
+        {{template "sidebar" .}}
+        <main class="main-content">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="page-title mb-0"><i class="bi bi-map"></i> Plans du site</h1>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPlanModal"><i class="bi bi-plus me-2"></i>Nouveau plan</button>
+            </div>
+            
+            <div class="row g-4">
+                {{range .Plans}}
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="plan-preview">
+                            {{if .ImagePath}}
+                            <img src="{{.ImagePath}}" alt="{{.Level}}">
+                            {{else}}
+                            <div class="no-image"><i class="bi bi-image"></i><p>Aucune image</p></div>
+                            {{end}}
+                        </div>
+                        <div class="card-body">
+                            <h5>{{.Level}}</h5>
+                            <p class="text-muted small mb-2">Échelle: 1:{{.ScaleFactor}}</p>
+                            <div class="d-flex gap-2">
+                                <label class="btn btn-sm btn-outline-primary flex-fill">
+                                    <i class="bi bi-upload me-1"></i>Image
+                                    <input type="file" accept="image/*" onchange="uploadImage({{.ID}}, this)" hidden>
+                                </label>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deletePlan({{.ID}})"><i class="bi bi-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {{else}}
+                <div class="col-12">
+                    <div class="card"><div class="card-body text-center py-5">
+                        <i class="bi bi-map" style="font-size:3rem;color:var(--secondary)"></i>
+                        <p class="mt-3 mb-0 text-muted">Aucun plan pour ce site</p>
+                    </div></div>
+                </div>
+                {{end}}
+            </div>
+        </main>
+    </div>
+    
+    <!-- Modal ajout plan -->
+    <div class="modal fade" id="addPlanModal"><div class="modal-dialog"><div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title">Nouveau plan</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+            <form id="addPlanForm">
+                <div class="mb-3"><label class="form-label">Niveau</label><input type="text" class="form-control" name="level" placeholder="Ex: RDC, Étage 1..." required></div>
+                <div class="mb-3"><label class="form-label">Échelle (1:X)</label><input type="number" class="form-control" name="scale_factor" value="100" step="0.01"></div>
+            </form>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button><button type="button" class="btn btn-primary" onclick="addPlan()">Créer</button></div>
+    </div></div></div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    function addPlan() {
+        const fd = new FormData(document.getElementById('addPlanForm'));
+        fetch('/api/admin/plans', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({level: fd.get('level'), scale_factor: parseFloat(fd.get('scale_factor'))})
+        }).then(() => location.reload());
+    }
+    
+    function uploadImage(planId, input) {
+        if (!input.files[0]) return;
+        const fd = new FormData();
+        fd.append('image', input.files[0]);
+        fetch('/api/admin/plans/' + planId + '/upload', {method: 'POST', body: fd})
+            .then(() => location.reload());
+    }
+    
+    function deletePlan(id) {
+        if(confirm('Supprimer ce plan?')) fetch('/api/admin/plans/' + id, {method: 'DELETE'}).then(() => location.reload());
+    }
+    </script>
+    <style>
+    .plan-preview { height: 200px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .plan-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .no-image { text-align: center; color: #94a3b8; }
+    .no-image i { font-size: 3rem; }
+    </style>
+</body>
+</html>
+{{end}}
